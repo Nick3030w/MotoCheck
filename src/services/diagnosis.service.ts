@@ -1,8 +1,8 @@
-import { textModel, visionModel, audioModel } from "@/config/gemini";
+import { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_BASE_URL, MOTOCHECK_SYSTEM_INSTRUCTION } from "@/config/gemini";
 import type { DiagnosisResult, GeminiDiagnosisResponse, ChatMessage } from "@/types";
 
 const DIAGNOSIS_JSON_PROMPT = `
-Responde ÚNICAMENTE con un JSON válido (sin markdown, sin backticks) con esta estructura exacta:
+Responde ÚNICAMENTE con un JSON válido (sin markdown, sin backticks, sin texto adicional) con esta estructura exacta:
 {
   "title": "Nombre corto de la falla",
   "description": "Descripción detallada del problema",
@@ -19,8 +19,8 @@ Responde ÚNICAMENTE con un JSON válido (sin markdown, sin backticks) con esta 
     "parts": [{"name": "Pieza", "min": 100, "max": 200}],
     "labor": {"min": 200, "max": 400}
   },
-  "canDIY": true/false,
-  "diyDifficulty": "fácil" | "intermedio" | "avanzado" | null,
+  "canDIY": true,
+  "diyDifficulty": "fácil",
   "diyNotes": "Notas sobre reparación casera o null"
 }
 
@@ -28,25 +28,55 @@ Los costos deben estar en pesos colombianos (COP).
 `;
 
 /**
+ * Llama a la API REST de Gemini directamente
+ */
+async function callGeminiAPI(contents: any[], systemInstruction?: string): Promise<string> {
+  const url = `${GEMINI_BASE_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+
+  const body: any = { contents };
+
+  if (systemInstruction) {
+    body.systemInstruction = {
+      parts: [{ text: systemInstruction }],
+    };
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    console.error("Gemini API Error:", response.status, errorData);
+    throw new Error(
+      errorData?.error?.message || `Error de la API de Gemini (${response.status})`
+    );
+  }
+
+  const data = await response.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!text) {
+    throw new Error("La IA no generó una respuesta. Intenta de nuevo.");
+  }
+
+  return text;
+}
+
+/**
  * Parsea la respuesta de Gemini a un DiagnosisResult tipado
  */
 function parseGeminiResponse(responseText: string): DiagnosisResult {
-  // Limpiar la respuesta (a veces Gemini agrega backticks)
   let cleaned = responseText.trim();
-  if (cleaned.startsWith("```json")) {
-    cleaned = cleaned.slice(7);
-  }
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.slice(3);
-  }
-  if (cleaned.endsWith("```")) {
-    cleaned = cleaned.slice(0, -3);
-  }
+  if (cleaned.startsWith("```json")) cleaned = cleaned.slice(7);
+  if (cleaned.startsWith("```")) cleaned = cleaned.slice(3);
+  if (cleaned.endsWith("```")) cleaned = cleaned.slice(0, -3);
   cleaned = cleaned.trim();
 
   const parsed: GeminiDiagnosisResponse = JSON.parse(cleaned);
 
-  // Calcular totales de costo
   let estimatedCost = null;
   if (parsed.estimatedCost) {
     const partsTotal = parsed.estimatedCost.parts.reduce(
@@ -81,26 +111,22 @@ function parseGeminiResponse(responseText: string): DiagnosisResult {
 export const diagnosisService = {
   /**
    * Diagnóstico por texto (chat con IA)
-   * Envía el historial de mensajes y obtiene respuesta
    */
   async diagnoseByText(
     messages: ChatMessage[],
     motorcycleInfo: string
   ): Promise<string> {
-    const chat = textModel.startChat({
-      history: messages.slice(0, -1).map((msg) => ({
-        role: msg.role === "user" ? "user" : "model",
-        parts: [{ text: msg.content }],
-      })),
-    });
+    const systemPrompt = motorcycleInfo
+      ? `${MOTOCHECK_SYSTEM_INSTRUCTION}\n\nLa moto del usuario es: ${motorcycleInfo}. Personaliza tus respuestas para este modelo específico.`
+      : MOTOCHECK_SYSTEM_INSTRUCTION;
 
-    const lastMessage = messages[messages.length - 1];
-    const contextPrefix = motorcycleInfo
-      ? `[Moto del usuario: ${motorcycleInfo}] `
-      : "";
+    // Construir historial de conversación para Gemini
+    const contents = messages.map((msg) => ({
+      role: msg.role === "user" ? "user" : "model",
+      parts: [{ text: msg.content }],
+    }));
 
-    const result = await chat.sendMessage(contextPrefix + lastMessage.content);
-    return result.response.text();
+    return callGeminiAPI(contents, systemPrompt);
   },
 
   /**
@@ -122,8 +148,9 @@ ${conversationSummary}
 
 ${DIAGNOSIS_JSON_PROMPT}`;
 
-    const result = await textModel.generateContent(prompt);
-    return parseGeminiResponse(result.response.text());
+    const contents = [{ role: "user" as const, parts: [{ text: prompt }] }];
+    const responseText = await callGeminiAPI(contents, MOTOCHECK_SYSTEM_INSTRUCTION);
+    return parseGeminiResponse(responseText);
   },
 
   /**
@@ -140,17 +167,19 @@ ${DIAGNOSIS_JSON_PROMPT}`;
 
 ${DIAGNOSIS_JSON_PROMPT}`;
 
-    const result = await visionModel.generateContent([
-      prompt,
+    const contents = [
       {
-        inlineData: {
-          data: imageBase64,
-          mimeType,
-        },
+        role: "user" as const,
+        parts: [
+          { text: prompt },
+          { inlineData: { data: imageBase64, mimeType } },
+        ],
       },
-    ]);
+    ];
 
-    return parseGeminiResponse(result.response.text());
+    const systemPrompt = `${MOTOCHECK_SYSTEM_INSTRUCTION}\n\nAnaliza imágenes para identificar fallas mecánicas visibles. Detecta desgaste, daños, fugas, corrosión u otros problemas.`;
+    const responseText = await callGeminiAPI(contents, systemPrompt);
+    return parseGeminiResponse(responseText);
   },
 
   /**
@@ -167,16 +196,18 @@ ${DIAGNOSIS_JSON_PROMPT}`;
 
 ${DIAGNOSIS_JSON_PROMPT}`;
 
-    const result = await audioModel.generateContent([
-      prompt,
+    const contents = [
       {
-        inlineData: {
-          data: audioBase64,
-          mimeType,
-        },
+        role: "user" as const,
+        parts: [
+          { text: prompt },
+          { inlineData: { data: audioBase64, mimeType } },
+        ],
       },
-    ]);
+    ];
 
-    return parseGeminiResponse(result.response.text());
+    const systemPrompt = `${MOTOCHECK_SYSTEM_INSTRUCTION}\n\nAnaliza audios para identificar ruidos anormales en motocicletas (golpeteos, chirridos, vibraciones, clics).`;
+    const responseText = await callGeminiAPI(contents, systemPrompt);
+    return parseGeminiResponse(responseText);
   },
 };
