@@ -1,9 +1,8 @@
 import { useState, useCallback } from "react";
 import { diagnosisService } from "@/services/diagnosis.service";
-import { storageService } from "@/services/storage.service";
 import { diagnosisRepository } from "@/repositories/diagnosis.repository";
 import { userRepository } from "@/repositories/user.repository";
-import type { DiagnosisResult, ChatMessage, DiagnosisType } from "@/types";
+import type { DiagnosisResult, ChatMessage } from "@/types";
 
 interface UseDiagnosisReturn {
   result: DiagnosisResult | null;
@@ -23,6 +22,22 @@ interface UseDiagnosisOptions {
   motorcycleInfo: string; // e.g. "Kawasaki Ninja 400 2022"
 }
 
+/**
+ * Convierte un File a base64 (sin prefijo data:...)
+ */
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.split(",")[1];
+      resolve(base64);
+    };
+    reader.onerror = (error) => reject(error);
+  });
+}
+
 export function useDiagnosis(options: UseDiagnosisOptions): UseDiagnosisReturn {
   const { userId, motorcycleId, motorcycleInfo } = options;
   const [result, setResult] = useState<DiagnosisResult | null>(null);
@@ -31,7 +46,8 @@ export function useDiagnosis(options: UseDiagnosisOptions): UseDiagnosisReturn {
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Diagnóstico por imagen: sube la imagen, la analiza con Gemini, guarda el resultado
+   * Diagnóstico por imagen: analiza con Gemini y guarda solo el resultado en texto
+   * (no se guarda la imagen, solo el diagnóstico)
    */
   const diagnoseByImage = useCallback(
     async (file: File): Promise<string> => {
@@ -39,8 +55,8 @@ export function useDiagnosis(options: UseDiagnosisOptions): UseDiagnosisReturn {
         setLoading(true);
         setError(null);
 
-        // Convertir imagen a base64 para Gemini
-        const base64 = await storageService.fileToBase64(file);
+        // Convertir imagen a base64 para enviar a Gemini
+        const base64 = await fileToBase64(file);
 
         // Analizar con Gemini
         const diagnosisResult = await diagnosisService.diagnoseByImage(
@@ -50,19 +66,15 @@ export function useDiagnosis(options: UseDiagnosisOptions): UseDiagnosisReturn {
         );
         setResult(diagnosisResult);
 
-        // Crear un ID temporal para subir la imagen
-        const tempId = Date.now().toString();
-
-        // Subir imagen a Storage
-        const imageUrl = await storageService.uploadDiagnosisImage(userId, tempId, file);
-
-        // Guardar diagnóstico en Firestore
+        // Guardar solo el resultado del diagnóstico en Firestore (sin imagen)
         const id = await diagnosisRepository.create({
           userId,
           motorcycleId,
           type: "image",
           result: diagnosisResult,
-          imageUrls: [imageUrl],
+          imageUrls: [],
+          audioUrl: null,
+          chatMessages: [],
         });
 
         setDiagnosisId(id);
@@ -83,7 +95,8 @@ export function useDiagnosis(options: UseDiagnosisOptions): UseDiagnosisReturn {
   );
 
   /**
-   * Diagnóstico por audio: sube el audio, lo analiza con Gemini, guarda el resultado
+   * Diagnóstico por audio: analiza con Gemini y guarda solo el resultado en texto
+   * (no se guarda el audio, solo el diagnóstico)
    */
   const diagnoseByAudio = useCallback(
     async (file: File): Promise<string> => {
@@ -91,8 +104,8 @@ export function useDiagnosis(options: UseDiagnosisOptions): UseDiagnosisReturn {
         setLoading(true);
         setError(null);
 
-        // Convertir audio a base64 para Gemini
-        const base64 = await storageService.fileToBase64(file);
+        // Convertir audio a base64 para enviar a Gemini
+        const base64 = await fileToBase64(file);
 
         // Analizar con Gemini
         const diagnosisResult = await diagnosisService.diagnoseByAudio(
@@ -102,19 +115,15 @@ export function useDiagnosis(options: UseDiagnosisOptions): UseDiagnosisReturn {
         );
         setResult(diagnosisResult);
 
-        // Crear un ID temporal para subir el audio
-        const tempId = Date.now().toString();
-
-        // Subir audio a Storage
-        const audioUrl = await storageService.uploadDiagnosisAudio(userId, tempId, file);
-
-        // Guardar diagnóstico en Firestore
+        // Guardar solo el resultado del diagnóstico en Firestore (sin audio)
         const id = await diagnosisRepository.create({
           userId,
           motorcycleId,
           type: "audio",
           result: diagnosisResult,
-          audioUrl,
+          imageUrls: [],
+          audioUrl: null,
+          chatMessages: [],
         });
 
         setDiagnosisId(id);
@@ -174,6 +183,8 @@ export function useDiagnosis(options: UseDiagnosisOptions): UseDiagnosisReturn {
           motorcycleId,
           type: "text",
           result: diagnosisResult,
+          imageUrls: [],
+          audioUrl: null,
           chatMessages: messages,
         });
 
