@@ -15,27 +15,42 @@ import { MotorcyclesScreen } from "./components/MotorcyclesScreen";
 import { WorkshopsMapScreen } from "./components/WorkshopsMapScreen";
 import { TutorialsScreen } from "./components/TutorialsScreen";
 import { RootLayout } from "./components/RootLayout";
+import { PrivateRoute } from "./components/PrivateRoute";
+
+// Helper to wrap components with PrivateRoute
+function withAuth(Component: React.ComponentType) {
+  return function ProtectedComponent() {
+    return (
+      <PrivateRoute>
+        <Component />
+      </PrivateRoute>
+    );
+  };
+}
 
 export const router = createBrowserRouter([
   {
     path: "/",
     Component: RootLayout,
     children: [
+      // Public routes
       { index: true, Component: SplashScreen },
       { path: "onboarding", Component: OnboardingScreen },
       { path: "login", Component: LoginScreen },
-      { path: "home", Component: HomeScreen },
-      { path: "diagnose/visual", Component: VisualDiagnosisScreen },
-      { path: "diagnose/audio", Component: AudioDiagnosisScreen },
-      { path: "diagnose/chat", Component: ChatScreen },
-      { path: "result/:id", Component: DiagnosisResultScreen },
-      { path: "result/:id/workshops", Component: WorkshopsMapScreen },
-      { path: "result/:id/tutorials", Component: TutorialsScreen },
-      { path: "history", Component: HistoryScreen },
-      { path: "settings", Component: SettingsScreen },
-      { path: "settings/permissions", Component: PermissionsScreen },
-      { path: "settings/support", Component: SupportScreen },
-      { path: "settings/motorcycles", Component: MotorcyclesScreen },
+
+      // Protected routes (require authentication)
+      { path: "home", Component: withAuth(HomeScreen) },
+      { path: "diagnose/visual", Component: withAuth(VisualDiagnosisScreen) },
+      { path: "diagnose/audio", Component: withAuth(AudioDiagnosisScreen) },
+      { path: "diagnose/chat", Component: withAuth(ChatScreen) },
+      { path: "result/:id", Component: withAuth(DiagnosisResultScreen) },
+      { path: "result/:id/workshops", Component: withAuth(WorkshopsMapScreen) },
+      { path: "result/:id/tutorials", Component: withAuth(TutorialsScreen) },
+      { path: "history", Component: withAuth(HistoryScreen) },
+      { path: "settings", Component: withAuth(SettingsScreen) },
+      { path: "settings/permissions", Component: withAuth(PermissionsScreen) },
+      { path: "settings/support", Component: withAuth(SupportScreen) },
+      { path: "settings/motorcycles", Component: withAuth(MotorcyclesScreen) },
     ],
   },
 ]);

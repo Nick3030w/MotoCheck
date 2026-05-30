@@ -1,8 +1,20 @@
 import { useNavigate } from "react-router";
 import { ChevronRight, User, Bike, Bell, Globe, Download, HelpCircle, Info, LogOut } from "lucide-react";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 export function SettingsScreen() {
   const navigate = useNavigate();
+  const { user, profile, logout } = useAuthContext();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
+
+  const displayName = user?.displayName || profile?.displayName || "Usuario";
+  const displayEmail = user?.email || "";
+  const totalDiagnostics = profile?.totalDiagnostics || 0;
+  const resolvedDiagnostics = profile?.resolvedDiagnostics || 0;
 
   return (
     <div className="h-full bg-[#0F0F0F] overflow-y-auto pb-24">
@@ -22,9 +34,9 @@ export function SettingsScreen() {
           </div>
           <div className="flex-1">
             <h2 className="text-xl font-[Space_Grotesk]" style={{ fontWeight: 600 }}>
-              Carlos Ramírez
+              {displayName}
             </h2>
-            <p className="text-sm text-[#888888]">carlos.ramirez@email.com</p>
+            <p className="text-sm text-[#888888]">{displayEmail}</p>
           </div>
           <button className="px-4 py-2 bg-[#FF6B2B]/10 hover:bg-[#FF6B2B]/20 rounded-xl text-sm text-[#FF6B2B] transition-colors">
             Editar
@@ -33,13 +45,13 @@ export function SettingsScreen() {
         <div className="grid grid-cols-3 gap-3 pt-4 border-t border-[#888888]/10">
           <div className="text-center">
             <p className="text-xl font-[Space_Grotesk] text-[#FF6B2B]" style={{ fontWeight: 700 }}>
-              12
+              {totalDiagnostics}
             </p>
             <p className="text-xs text-[#888888]">Diagnósticos</p>
           </div>
           <div className="text-center">
             <p className="text-xl font-[Space_Grotesk] text-[#2ECC71]" style={{ fontWeight: 700 }}>
-              9
+              {resolvedDiagnostics}
             </p>
             <p className="text-xs text-[#888888]">Resueltos</p>
           </div>
@@ -160,7 +172,7 @@ export function SettingsScreen() {
 
         {/* Logout */}
         <button
-          onClick={() => navigate("/")}
+          onClick={handleLogout}
           className="w-full bg-[#E74C3C]/10 hover:bg-[#E74C3C]/20 border border-[#E74C3C] py-4 rounded-2xl flex items-center justify-center gap-2 transition-colors"
         >
           <LogOut className="w-5 h-5 text-[#E74C3C]" />

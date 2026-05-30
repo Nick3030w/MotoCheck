@@ -1,18 +1,75 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Cpu, Zap, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Cpu, Zap, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 export function LoginScreen() {
   const navigate = useNavigate();
+  const { login, register, loginWithGoogle, resetPassword, error, clearError, loading } =
+    useAuthContext();
+
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const displayError = localError || error;
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/home");
+    setLocalError(null);
+    clearError();
+
+    try {
+      if (isLogin) {
+        await login({ email, password });
+      } else {
+        if (!name.trim()) {
+          setLocalError("Ingresa tu nombre completo.");
+          return;
+        }
+        if (password.length < 6) {
+          setLocalError("La contraseña debe tener al menos 6 caracteres.");
+          return;
+        }
+        await register({ email, password, displayName: name });
+      }
+      navigate("/home");
+    } catch {
+      // Error is handled by the auth context
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setLocalError(null);
+    clearError();
+    try {
+      await loginWithGoogle();
+      navigate("/home");
+    } catch {
+      // Error is handled by the auth context
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email.trim()) {
+      setLocalError("Ingresa tu correo para recuperar la contraseña.");
+      return;
+    }
+    try {
+      await resetPassword(email);
+      setResetSent(true);
+      setLocalError(null);
+    } catch {
+      // Error is handled by the auth context
+    }
+  };
+
+  const handleAppleLogin = () => {
+    setLocalError("Inicio con Apple estará disponible próximamente.");
   };
 
   return (
@@ -30,7 +87,12 @@ export function LoginScreen() {
       {/* Tab switcher */}
       <div className="flex bg-[#1A1A1A] rounded-2xl p-1 mb-8">
         <button
-          onClick={() => setIsLogin(true)}
+          onClick={() => {
+            setIsLogin(true);
+            setLocalError(null);
+            clearError();
+            setResetSent(false);
+          }}
           className={`flex-1 py-3 rounded-xl transition-all font-[Space_Grotesk] ${
             isLogin ? "bg-[#FF6B2B] text-white" : "text-[#888888]"
           }`}
@@ -39,7 +101,12 @@ export function LoginScreen() {
           Iniciar Sesión
         </button>
         <button
-          onClick={() => setIsLogin(false)}
+          onClick={() => {
+            setIsLogin(false);
+            setLocalError(null);
+            clearError();
+            setResetSent(false);
+          }}
           className={`flex-1 py-3 rounded-xl transition-all font-[Space_Grotesk] ${
             !isLogin ? "bg-[#FF6B2B] text-white" : "text-[#888888]"
           }`}
@@ -48,6 +115,22 @@ export function LoginScreen() {
           Registrarse
         </button>
       </div>
+
+      {/* Error message */}
+      {displayError && (
+        <div className="mb-4 bg-[#E74C3C]/10 border border-[#E74C3C]/30 rounded-2xl px-4 py-3">
+          <p className="text-sm text-[#E74C3C]">{displayError}</p>
+        </div>
+      )}
+
+      {/* Reset password success */}
+      {resetSent && (
+        <div className="mb-4 bg-[#2ECC71]/10 border border-[#2ECC71]/30 rounded-2xl px-4 py-3">
+          <p className="text-sm text-[#2ECC71]">
+            Se envió un correo de recuperación a {email}
+          </p>
+        </div>
+      )}
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4 mb-6">
@@ -97,7 +180,11 @@ export function LoginScreen() {
 
         {isLogin && (
           <div className="text-right">
-            <button type="button" className="text-[#FF6B2B] text-sm hover:text-[#FF8C5A]">
+            <button
+              type="button"
+              onClick={handleResetPassword}
+              className="text-[#FF6B2B] text-sm hover:text-[#FF8C5A]"
+            >
               ¿Olvidé mi contraseña?
             </button>
           </div>
@@ -105,10 +192,18 @@ export function LoginScreen() {
 
         <button
           type="submit"
-          className="w-full bg-[#FF6B2B] hover:bg-[#FF8C5A] transition-colors py-4 rounded-3xl font-[Space_Grotesk] mt-6"
+          disabled={loading}
+          className="w-full bg-[#FF6B2B] hover:bg-[#FF8C5A] transition-colors py-4 rounded-3xl font-[Space_Grotesk] mt-6 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           style={{ fontWeight: 600 }}
         >
-          {isLogin ? "Iniciar Sesión" : "Crear Cuenta"}
+          {loading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>{isLogin ? "Iniciando..." : "Creando cuenta..."}</span>
+            </>
+          ) : (
+            <span>{isLogin ? "Iniciar Sesión" : "Crear Cuenta"}</span>
+          )}
         </button>
       </form>
 
@@ -120,8 +215,12 @@ export function LoginScreen() {
       </div>
 
       {/* Social buttons */}
-      <div className="space-y-3">
-        <button className="w-full bg-[#1A1A1A] hover:bg-[#2A2A2A] transition-colors py-4 rounded-2xl flex items-center justify-center gap-3">
+      <div className="space-y-3 pb-8">
+        <button
+          onClick={handleGoogleLogin}
+          disabled={loading}
+          className="w-full bg-[#1A1A1A] hover:bg-[#2A2A2A] transition-colors py-4 rounded-2xl flex items-center justify-center gap-3 disabled:opacity-50"
+        >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
               fill="currentColor"
@@ -143,7 +242,11 @@ export function LoginScreen() {
           <span>Continuar con Google</span>
         </button>
 
-        <button className="w-full bg-[#1A1A1A] hover:bg-[#2A2A2A] transition-colors py-4 rounded-2xl flex items-center justify-center gap-3">
+        <button
+          onClick={handleAppleLogin}
+          disabled={loading}
+          className="w-full bg-[#1A1A1A] hover:bg-[#2A2A2A] transition-colors py-4 rounded-2xl flex items-center justify-center gap-3 disabled:opacity-50"
+        >
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
             <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
           </svg>

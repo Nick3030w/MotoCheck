@@ -1,8 +1,13 @@
 import { useNavigate } from "react-router";
 import { Camera, Mic, MessageCircle, Bell, ChevronRight, Activity } from "lucide-react";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 export function HomeScreen() {
   const navigate = useNavigate();
+  const { user } = useAuthContext();
+
+  // Obtener primer nombre del usuario
+  const firstName = user?.displayName?.split(" ")[0] || "Usuario";
 
   return (
     <div className="h-full bg-[#0F0F0F] overflow-y-auto">
@@ -11,7 +16,7 @@ export function HomeScreen() {
         <div>
           <p className="text-[#888888] text-sm">Hola,</p>
           <h1 className="text-2xl font-[Space_Grotesk]" style={{ fontWeight: 700 }}>
-            Carlos 👋
+            {firstName} 👋
           </h1>
         </div>
         <button className="w-12 h-12 bg-[#1A1A1A] rounded-full flex items-center justify-center relative">

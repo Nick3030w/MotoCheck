@@ -1,17 +1,33 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { motion } from "motion/react";
 import { Zap, Cpu } from "lucide-react";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 export function SplashScreen() {
   const navigate = useNavigate();
+  const { isAuthenticated, loading } = useAuthContext();
+  const hasNavigated = useRef(false);
 
   useEffect(() => {
+    // No navegar hasta que auth termine de cargar
+    if (loading) return;
+    if (hasNavigated.current) return;
+
+    // Esperar mínimo 2.5s para la animación del splash
     const timer = setTimeout(() => {
-      navigate("/onboarding");
-    }, 3000);
+      if (hasNavigated.current) return;
+      hasNavigated.current = true;
+
+      if (isAuthenticated) {
+        navigate("/home", { replace: true });
+      } else {
+        navigate("/onboarding", { replace: true });
+      }
+    }, 2500);
+
     return () => clearTimeout(timer);
-  }, [navigate]);
+  }, [loading, isAuthenticated, navigate]);
 
   return (
     <div className="h-full bg-gradient-to-b from-[#0F0F0F] via-[#1A1A1A] to-[#0F0F0F] flex flex-col items-center justify-center px-8">
