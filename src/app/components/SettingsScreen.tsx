@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router";
-import { ChevronRight, User, Bike, Bell, Globe, Download, HelpCircle, Info, LogOut } from "lucide-react";
+import { ChevronRight, User, Bike, Bell, Globe, Download, HelpCircle, Info, LogOut, Loader2 } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useDiagnostics } from "@/hooks/useDiagnostics";
 
 export function SettingsScreen() {
   const navigate = useNavigate();
@@ -15,6 +16,73 @@ export function SettingsScreen() {
   const displayEmail = user?.email || "";
   const totalDiagnostics = profile?.totalDiagnostics || 0;
   const resolvedDiagnostics = profile?.resolvedDiagnostics || 0;
+
+  const { diagnostics } = useDiagnostics(user?.uid);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportHistory = async () => {
+    if (diagnostics.length === 0) {
+      alert("No tienes diagnósticos para exportar.");
+      return;
+    }
+
+    setExporting(true);
+
+    try {
+      let content = `═══════════════════════════════════════\n`;
+      content += `  MOTOCHECK - Historial de Diagnósticos\n`;
+      content += `  Usuario: ${displayName}\n`;
+      content += `  Fecha de exportación: ${new Date().toLocaleDateString("es-CO")}\n`;
+      content += `═══════════════════════════════════════\n\n`;
+
+      diagnostics.forEach((d, index) => {
+        const date = new Date(d.createdAt).toLocaleDateString("es-CO", {
+          day: "numeric", month: "long", year: "numeric",
+        });
+
+        content += `───────────────────────────────────────\n`;
+        content += `  Diagnóstico #${index + 1}\n`;
+        content += `───────────────────────────────────────\n`;
+        content += `Fecha: ${date}\n`;
+        content += `Tipo: ${d.type === "text" ? "Chat IA" : d.type === "image" ? "Visual" : "Audio"}\n`;
+        content += `Título: ${d.result.title}\n`;
+        content += `Gravedad: ${d.result.severity.toUpperCase()}\n`;
+        content += `Confianza: ${d.result.confidence}%\n`;
+        content += `Componente afectado: ${d.result.affectedComponent}\n\n`;
+        content += `Descripción:\n${d.result.description}\n\n`;
+        content += `Causas:\n${d.result.causes.map((c) => `  • ${c}`).join("\n")}\n\n`;
+        content += `Síntomas:\n${d.result.symptoms.map((s) => `  • ${s}`).join("\n")}\n\n`;
+        content += `Soluciones:\n${d.result.solutions.map((s) => `  ${s.step}. ${s.description}`).join("\n")}\n\n`;
+
+        if (d.result.estimatedCost) {
+          content += `Costo estimado: $${d.result.estimatedCost.totalMin.toLocaleString()} - $${d.result.estimatedCost.totalMax.toLocaleString()} COP\n\n`;
+        }
+
+        content += `¿Reparación casera?: ${d.result.canDIY ? `Sí (${d.result.diyDifficulty})` : "No recomendado"}\n`;
+        content += `\n`;
+      });
+
+      content += `═══════════════════════════════════════\n`;
+      content += `  Total: ${diagnostics.length} diagnósticos\n`;
+      content += `  Generado por MOTOCHECK\n`;
+      content += `═══════════════════════════════════════\n`;
+
+      // Descargar como archivo .txt
+      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `MotoCheck_Historial_${new Date().toISOString().split("T")[0]}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Error al exportar el historial.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="h-full bg-[#0F0F0F] overflow-y-auto pb-24">
