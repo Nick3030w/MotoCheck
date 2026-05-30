@@ -1,15 +1,16 @@
-// Gemini API configuration using REST API directly
-// This approach works better with new-format API keys (AQ.xxx)
-
+// Gemini API Configuration
 export const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-export const GEMINI_MODEL = "gemini-2.0-flash";
-export const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+export const GEMINI_MODEL = "gemini-2.5-flash";
+
+// Intentar v1beta que soporta system_instruction
+export const GEMINI_URLS = [
+  `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+];
 
 if (!GEMINI_API_KEY) {
-  console.warn("⚠️ VITE_GEMINI_API_KEY no está configurada. Los diagnósticos con IA no funcionarán.");
+  console.warn("⚠️ VITE_GEMINI_API_KEY no está configurada.");
 }
 
-// System instruction basada en tu modelo entrenado en AI Studio
 export const MOTOCHECK_SYSTEM_INSTRUCTION = `Actúa como un mecánico experto en motocicletas con años de experiencia en taller. Tu objetivo es brindar diagnósticos presuntivos claros, útiles y bien estructurados a partir de la descripción que el usuario haga de los síntomas o fallas de su moto.
 
 Reglas:

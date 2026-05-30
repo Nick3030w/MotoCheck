@@ -1,4 +1,4 @@
-import { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_BASE_URL, MOTOCHECK_SYSTEM_INSTRUCTION } from "@/config/gemini";
+import { GEMINI_API_KEY, GEMINI_URLS, MOTOCHECK_SYSTEM_INSTRUCTION } from "@/config/gemini";
 import type { DiagnosisResult, GeminiDiagnosisResponse, ChatMessage } from "@/types";
 
 const DIAGNOSIS_JSON_PROMPT = `
@@ -28,41 +28,53 @@ Los costos deben estar en pesos colombianos (COP).
 `;
 
 /**
- * Llama a la API REST de Gemini directamente
+ * Llama a la API de Gemini intentando múltiples URLs
  */
 async function callGeminiAPI(contents: any[], systemInstruction?: string): Promise<string> {
-  const url = `${GEMINI_BASE_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-
   const body: any = { contents };
 
   if (systemInstruction) {
-    body.systemInstruction = {
+    body.system_instruction = {
       parts: [{ text: systemInstruction }],
     };
   }
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let lastError: Error | null = null;
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    console.error("Gemini API Error:", response.status, errorData);
-    throw new Error(
-      errorData?.error?.message || `Error de la API de Gemini (${response.status})`
-    );
+  for (const baseUrl of GEMINI_URLS) {
+    const url = `${baseUrl}?key=${GEMINI_API_KEY}`;
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error("La IA no generó una respuesta.");
+        return text;
+      }
+
+      const errorData = await response.json().catch(() => ({}));
+      console.error(`Gemini API (${baseUrl}) Error ${response.status}:`, errorData?.error?.message || errorData);
+      lastError = new Error(errorData?.error?.message || `Error ${response.status}`);
+
+      // Si es 404, intentar siguiente URL
+      if (response.status === 404) continue;
+      // Si es 429 (rate limit), intentar siguiente URL
+      if (response.status === 429) continue;
+      // Otros errores, no reintentar
+      break;
+    } catch (err: any) {
+      lastError = err;
+      continue;
+    }
   }
 
-  const data = await response.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!text) {
-    throw new Error("La IA no generó una respuesta. Intenta de nuevo.");
-  }
-
-  return text;
+  throw lastError || new Error("No se pudo conectar con la IA");
 }
 
 /**
@@ -120,8 +132,11 @@ export const diagnosisService = {
       ? `${MOTOCHECK_SYSTEM_INSTRUCTION}\n\nLa moto del usuario es: ${motorcycleInfo}. Personaliza tus respuestas para este modelo específico.`
       : MOTOCHECK_SYSTEM_INSTRUCTION;
 
-    // Construir historial de conversación para Gemini
-    const contents = messages.map((msg) => ({
+    // Construir contenido: solo mensajes desde el primer mensaje del usuario
+    const firstUserIndex = messages.findIndex((msg) => msg.role === "user");
+    const relevantMessages = firstUserIndex >= 0 ? messages.slice(firstUserIndex) : messages;
+
+    const contents = relevantMessages.map((msg) => ({
       role: msg.role === "user" ? "user" : "model",
       parts: [{ text: msg.content }],
     }));
@@ -137,18 +152,19 @@ export const diagnosisService = {
     motorcycleInfo: string
   ): Promise<DiagnosisResult> {
     const conversationSummary = chatHistory
-      .map((msg) => `${msg.role === "user" ? "Usuario" : "IA"}: ${msg.content}`)
+      .filter((msg) => msg.role === "user")
+      .map((msg) => msg.content)
       .join("\n");
 
-    const prompt = `Basándote en esta conversación sobre una falla de motocicleta${
-      motorcycleInfo ? ` (${motorcycleInfo})` : ""
-    }, genera un diagnóstico completo:
+    const prompt = `El usuario tiene una ${motorcycleInfo || "motocicleta"} y describió estos problemas:
 
 ${conversationSummary}
 
+Genera un diagnóstico completo basado en esta información.
+
 ${DIAGNOSIS_JSON_PROMPT}`;
 
-    const contents = [{ role: "user" as const, parts: [{ text: prompt }] }];
+    const contents = [{ role: "user", parts: [{ text: prompt }] }];
     const responseText = await callGeminiAPI(contents, MOTOCHECK_SYSTEM_INSTRUCTION);
     return parseGeminiResponse(responseText);
   },
@@ -169,15 +185,15 @@ ${DIAGNOSIS_JSON_PROMPT}`;
 
     const contents = [
       {
-        role: "user" as const,
+        role: "user",
         parts: [
           { text: prompt },
-          { inlineData: { data: imageBase64, mimeType } },
+          { inline_data: { data: imageBase64, mime_type: mimeType } },
         ],
       },
     ];
 
-    const systemPrompt = `${MOTOCHECK_SYSTEM_INSTRUCTION}\n\nAnaliza imágenes para identificar fallas mecánicas visibles. Detecta desgaste, daños, fugas, corrosión u otros problemas.`;
+    const systemPrompt = `${MOTOCHECK_SYSTEM_INSTRUCTION}\n\nAnaliza imágenes de motocicletas para identificar fallas mecánicas visibles.`;
     const responseText = await callGeminiAPI(contents, systemPrompt);
     return parseGeminiResponse(responseText);
   },
@@ -198,15 +214,15 @@ ${DIAGNOSIS_JSON_PROMPT}`;
 
     const contents = [
       {
-        role: "user" as const,
+        role: "user",
         parts: [
           { text: prompt },
-          { inlineData: { data: audioBase64, mimeType } },
+          { inline_data: { data: audioBase64, mime_type: mimeType } },
         ],
       },
     ];
 
-    const systemPrompt = `${MOTOCHECK_SYSTEM_INSTRUCTION}\n\nAnaliza audios para identificar ruidos anormales en motocicletas (golpeteos, chirridos, vibraciones, clics).`;
+    const systemPrompt = `${MOTOCHECK_SYSTEM_INSTRUCTION}\n\nAnaliza audios de motocicletas para identificar ruidos anormales.`;
     const responseText = await callGeminiAPI(contents, systemPrompt);
     return parseGeminiResponse(responseText);
   },
