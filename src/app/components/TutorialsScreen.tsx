@@ -1,18 +1,17 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ChevronLeft, Play, Clock, Eye, ThumbsUp, Bookmark } from "lucide-react";
+import { ChevronLeft, Play, Clock, Eye, ThumbsUp } from "lucide-react";
 
 interface Tutorial {
   id: number;
   title: string;
-  thumbnail: string;
+  youtubeId: string;
   duration: string;
   views: string;
   likes: number;
   difficulty: "Fácil" | "Intermedio" | "Avanzado";
   description: string;
   author: string;
-  authorAvatar: string;
 }
 
 export function TutorialsScreen() {
@@ -23,75 +22,69 @@ export function TutorialsScreen() {
   const tutorials: Tutorial[] = [
     {
       id: 1,
-      title: "Cómo cambiar bujías de encendido en motos deportivas",
-      thumbnail: "🔧",
-      duration: "8:45",
+      title: "Cómo cambiar bujías de encendido en motos",
+      youtubeId: "NdBT26FVkCk",
+      duration: "10:23",
       views: "125K",
       likes: 3400,
       difficulty: "Fácil",
       description: "Tutorial paso a paso para reemplazar las bujías de encendido. Aprende la técnica correcta y las herramientas necesarias.",
       author: "MecánicoExpress",
-      authorAvatar: "👨‍🔧",
     },
     {
       id: 2,
-      title: "Diagnóstico de fallas en sistema de encendido Kawasaki",
-      thumbnail: "⚡",
+      title: "Diagnóstico de fallas en sistema de encendido",
+      youtubeId: "_aXy5OTYOq4",
       duration: "12:30",
       views: "89K",
       likes: 2100,
       difficulty: "Intermedio",
-      description: "Identifica problemas comunes en el sistema de encendido de motos Kawasaki y cómo solucionarlos.",
+      description: "Identifica problemas comunes en el sistema de encendido de motos y cómo solucionarlos.",
       author: "Kawasaki Pro",
-      authorAvatar: "🏍️",
     },
     {
       id: 3,
       title: "Mantenimiento preventivo: Sistema de encendido",
-      thumbnail: "🛠️",
+      youtubeId: "vSVfkAGD8UY",
       duration: "15:20",
       views: "203K",
       likes: 5600,
       difficulty: "Fácil",
       description: "Aprende a realizar mantenimiento preventivo para evitar fallas en el sistema de encendido de tu moto.",
       author: "MotosTotal",
-      authorAvatar: "🔩",
     },
     {
       id: 4,
       title: "Problemas de arranque: Soluciones rápidas",
-      thumbnail: "🚀",
+      youtubeId: "Wd9RLqqnLQs",
       duration: "10:15",
       views: "156K",
       likes: 4200,
       difficulty: "Fácil",
       description: "Resuelve problemas de arranque difícil causados por bujías defectuosas o sistema eléctrico.",
       author: "TallerVirtual",
-      authorAvatar: "⚙️",
     },
     {
       id: 5,
       title: "Ajuste de torque en bujías - Técnica profesional",
-      thumbnail: "📏",
+      youtubeId: "EjuJ35YbAho",
       duration: "6:50",
       views: "67K",
       likes: 1800,
       difficulty: "Intermedio",
       description: "Aprende la técnica correcta de torque para instalar bujías sin dañar la rosca del motor.",
       author: "ProMecánico",
-      authorAvatar: "👷",
     },
     {
       id: 6,
       title: "Lectura de bujías: Diagnóstico del motor",
-      thumbnail: "🔍",
+      youtubeId: "NpzbzSz2A3I",
       duration: "9:40",
       views: "112K",
       likes: 3100,
       difficulty: "Avanzado",
       description: "Aprende a leer el estado de las bujías para diagnosticar problemas internos del motor.",
       author: "DiagnósticoMotos",
-      authorAvatar: "🔬",
     },
   ];
 
@@ -126,26 +119,26 @@ export function TutorialsScreen() {
         </div>
       </div>
 
-      {/* Video player placeholder (if video selected) */}
+      {/* Video player (if video selected) */}
       {selectedVideo && (
         <div className="bg-[#0F0F0F] px-6 pt-4">
-          <div className="relative h-48 bg-gradient-to-br from-[#2A2A2A] to-[#1A1A1A] rounded-3xl overflow-hidden border border-[#888888]/10 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-6xl mb-3">{selectedVideo.thumbnail}</div>
-              <button className="w-16 h-16 bg-[#FF6B2B] hover:bg-[#FF8C5A] rounded-full flex items-center justify-center mx-auto transition-colors">
-                <Play className="w-8 h-8 text-white ml-1" fill="white" />
-              </button>
-            </div>
+          {/* YouTube Embed */}
+          <div className="relative w-full rounded-3xl overflow-hidden" style={{ paddingBottom: "56.25%" }}>
+            <iframe
+              className="absolute inset-0 w-full h-full"
+              src={`https://www.youtube.com/embed/${selectedVideo.youtubeId}?rel=0&modestbranding=1`}
+              title={selectedVideo.title}
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
           </div>
           <div className="mt-4 mb-4">
             <h2 className="text-lg font-[Space_Grotesk] mb-2" style={{ fontWeight: 600 }}>
               {selectedVideo.title}
             </h2>
             <div className="flex items-center gap-4 text-sm text-[#888888] mb-3">
-              <div className="flex items-center gap-1">
-                <div className="text-xl">{selectedVideo.authorAvatar}</div>
-                <span>{selectedVideo.author}</span>
-              </div>
+              <span>{selectedVideo.author}</span>
               <div className="flex items-center gap-1">
                 <Eye className="w-4 h-4" />
                 {selectedVideo.views}
@@ -181,13 +174,17 @@ export function TutorialsScreen() {
                 <div className="flex gap-4">
                   {/* Thumbnail */}
                   <div className="w-32 h-20 bg-gradient-to-br from-[#2A2A2A] to-[#1A1A1A] rounded-xl flex items-center justify-center flex-shrink-0 relative overflow-hidden border border-[#888888]/10">
-                    <div className="text-4xl">{tutorial.thumbnail}</div>
-                    <div className="absolute top-2 right-2 bg-[#0F0F0F]/90 px-2 py-1 rounded text-xs flex items-center gap-1">
+                    <img
+                      src={`https://img.youtube.com/vi/${tutorial.youtubeId}/mqdefault.jpg`}
+                      alt={tutorial.title}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                      <Play className="w-8 h-8 text-white" fill="white" />
+                    </div>
+                    <div className="absolute bottom-1 right-1 bg-[#0F0F0F]/90 px-2 py-0.5 rounded text-xs flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       {tutorial.duration}
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/30 transition-colors">
-                      <Play className="w-8 h-8 text-white opacity-0 hover:opacity-100 transition-opacity" />
                     </div>
                   </div>
 
@@ -198,10 +195,7 @@ export function TutorialsScreen() {
                     </h3>
 
                     <div className="flex items-center gap-2 mb-2 text-xs text-[#888888]">
-                      <div className="flex items-center gap-1">
-                        <div className="text-sm">{tutorial.authorAvatar}</div>
-                        <span>{tutorial.author}</span>
-                      </div>
+                      <span>{tutorial.author}</span>
                     </div>
 
                     <div className="flex items-center gap-3 text-xs">
@@ -209,25 +203,10 @@ export function TutorialsScreen() {
                         <Eye className="w-3 h-3" />
                         {tutorial.views}
                       </div>
-                      <div className="flex items-center gap-1 text-[#888888]">
-                        <ThumbsUp className="w-3 h-3" />
-                        {tutorial.likes}
-                      </div>
                       <span className={`px-2 py-0.5 rounded-full border ${difficultyStyle.bg} ${difficultyStyle.text} ${difficultyStyle.border}`}>
                         {tutorial.difficulty}
                       </span>
                     </div>
-                  </div>
-
-                  {/* Bookmark */}
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Handle bookmark action
-                    }}
-                    className="flex-shrink-0 w-8 h-8 hover:bg-[#FF6B2B]/10 rounded-lg flex items-center justify-center transition-colors cursor-pointer"
-                  >
-                    <Bookmark className="w-4 h-4 text-[#888888] hover:text-[#FF6B2B]" />
                   </div>
                 </div>
               </button>
