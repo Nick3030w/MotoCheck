@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Camera, Mic, MessageCircle, Bell, ChevronRight, Activity, Plus } from "lucide-react";
+import { Camera, Mic, MessageCircle, Bell, ChevronRight, Activity, Plus, X } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useMotorcycles } from "@/hooks/useMotorcycles";
 import { useDiagnostics } from "@/hooks/useDiagnostics";
@@ -9,6 +10,7 @@ export function HomeScreen() {
   const { user, profile } = useAuthContext();
   const { motorcycles, selectedMotorcycle, loading: motosLoading } = useMotorcycles(user?.uid);
   const { diagnostics, loading: diagLoading } = useDiagnostics(user?.uid);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   // Obtener primer nombre del usuario
   const firstName = user?.displayName?.split(" ")[0] || "Usuario";
@@ -28,8 +30,53 @@ export function HomeScreen() {
     return `hace ${days} días`;
   };
 
+  // Generar notificaciones basadas en datos reales
+  const notifications = [
+    ...(selectedMotorcycle
+      ? [{ id: "moto", icon: "🏍️", title: `${selectedMotorcycle.brand} ${selectedMotorcycle.model}`, message: "Recuerda hacer mantenimiento preventivo cada 3,000 km", time: "Hoy" }]
+      : [{ id: "add-moto", icon: "➕", title: "Agrega tu moto", message: "Registra tu motocicleta para diagnósticos personalizados", time: "Ahora" }]),
+    ...(diagnostics.length > 0
+      ? [{ id: "last-diag", icon: "🔧", title: "Último diagnóstico", message: `${diagnostics[0].result.title} - ${diagnostics[0].result.severity}`, time: getTimeSince(diagnostics[0].createdAt) }]
+      : []),
+    { id: "tip", icon: "💡", title: "Consejo del día", message: "Revisa la presión de tus llantas cada semana para mayor seguridad", time: "Hoy" },
+    { id: "welcome", icon: "👋", title: "Bienvenido a MotoCheck", message: "Usa el chat con IA para diagnosticar cualquier falla", time: "Reciente" },
+  ];
+
   return (
     <div className="h-full bg-[#0F0F0F] overflow-y-auto">
+      {/* Notifications panel */}
+      {showNotifications && (
+        <div className="absolute inset-0 z-50 bg-[#0F0F0F]/95 backdrop-blur-sm">
+          <div className="px-6 py-4 flex items-center justify-between border-b border-[#1A1A1A]">
+            <h2 className="text-xl font-[Space_Grotesk]" style={{ fontWeight: 700 }}>Notificaciones</h2>
+            <button
+              onClick={() => setShowNotifications(false)}
+              className="w-10 h-10 bg-[#1A1A1A] rounded-full flex items-center justify-center"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="px-6 py-4 space-y-3 overflow-y-auto" style={{ maxHeight: "calc(100% - 70px)" }}>
+            {notifications.map((notif) => (
+              <div key={notif.id} className="bg-[#1A1A1A] rounded-2xl p-4 border border-[#888888]/10">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-[#FF6B2B]/10 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
+                    {notif.icon}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="font-[Space_Grotesk] text-sm" style={{ fontWeight: 600 }}>{notif.title}</h3>
+                      <span className="text-xs text-[#888888]">{notif.time}</span>
+                    </div>
+                    <p className="text-sm text-[#888888]">{notif.message}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="px-6 py-6 flex items-center justify-between">
         <div>
@@ -38,9 +85,12 @@ export function HomeScreen() {
             {firstName} 👋
           </h1>
         </div>
-        <button className="w-12 h-12 bg-[#1A1A1A] rounded-full flex items-center justify-center relative">
+        <button
+          onClick={() => setShowNotifications(true)}
+          className="w-12 h-12 bg-[#1A1A1A] rounded-full flex items-center justify-center relative"
+        >
           <Bell className="w-5 h-5 text-white" />
-          {diagnostics.length > 0 && (
+          {notifications.length > 0 && (
             <div className="absolute top-2 right-2 w-2 h-2 bg-[#FF6B2B] rounded-full" />
           )}
         </button>
