@@ -1,5 +1,5 @@
 import { firestoreService } from "@/services/firestore.service";
-import { where, orderBy } from "firebase/firestore";
+import { where } from "firebase/firestore";
 import type { Motorcycle, MotorcycleFormData } from "@/types";
 
 const COLLECTION = "motorcycles";
@@ -11,7 +11,6 @@ export const motorcycleRepository = {
   async getByUserId(userId: string): Promise<Motorcycle[]> {
     return firestoreService.getAll<Motorcycle>(COLLECTION, [
       where("userId", "==", userId),
-      orderBy("createdAt", "desc"),
     ]);
   },
 

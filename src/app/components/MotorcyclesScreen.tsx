@@ -138,20 +138,20 @@ export function MotorcyclesScreen() {
                 onChange={(e) => setNewMoto({ ...newMoto, model: e.target.value })}
                 className="w-full bg-[#2A2A2A] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#FF6B2B] transition-colors"
               />
-              <div className="flex gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <input
                   type="text"
                   placeholder="Año"
                   value={newMoto.year}
                   onChange={(e) => setNewMoto({ ...newMoto, year: e.target.value })}
-                  className="flex-1 bg-[#2A2A2A] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#FF6B2B] transition-colors"
+                  className="w-full bg-[#2A2A2A] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#FF6B2B] transition-colors"
                 />
                 <input
                   type="text"
                   placeholder="Color"
                   value={newMoto.color}
                   onChange={(e) => setNewMoto({ ...newMoto, color: e.target.value })}
-                  className="flex-1 bg-[#2A2A2A] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#FF6B2B] transition-colors"
+                  className="w-full bg-[#2A2A2A] rounded-xl px-4 py-3 outline-none border border-transparent focus:border-[#FF6B2B] transition-colors"
                 />
               </div>
             </div>

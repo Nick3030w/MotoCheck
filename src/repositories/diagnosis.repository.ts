@@ -1,5 +1,5 @@
 import { firestoreService } from "@/services/firestore.service";
-import { where, orderBy, limit } from "firebase/firestore";
+import { where, limit } from "firebase/firestore";
 import type { Diagnosis, DiagnosisResult, DiagnosisType, ChatMessage } from "@/types";
 
 const COLLECTION = "diagnostics";
@@ -9,21 +9,23 @@ export const diagnosisRepository = {
    * Obtener todos los diagnósticos de un usuario (ordenados por fecha)
    */
   async getByUserId(userId: string): Promise<Diagnosis[]> {
-    return firestoreService.getAll<Diagnosis>(COLLECTION, [
+    const results = await firestoreService.getAll<Diagnosis>(COLLECTION, [
       where("userId", "==", userId),
-      orderBy("createdAt", "desc"),
     ]);
+    // Ordenar en el cliente para evitar índices compuestos
+    return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 
   /**
    * Obtener diagnósticos recientes (limitados)
    */
   async getRecent(userId: string, count: number = 10): Promise<Diagnosis[]> {
-    return firestoreService.getAll<Diagnosis>(COLLECTION, [
+    const results = await firestoreService.getAll<Diagnosis>(COLLECTION, [
       where("userId", "==", userId),
-      orderBy("createdAt", "desc"),
-      limit(count),
     ]);
+    return results
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, count);
   },
 
   /**
@@ -67,9 +69,9 @@ export const diagnosisRepository = {
    * Obtener diagnósticos por moto específica
    */
   async getByMotorcycleId(motorcycleId: string): Promise<Diagnosis[]> {
-    return firestoreService.getAll<Diagnosis>(COLLECTION, [
+    const results = await firestoreService.getAll<Diagnosis>(COLLECTION, [
       where("motorcycleId", "==", motorcycleId),
-      orderBy("createdAt", "desc"),
     ]);
+    return results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 };
