@@ -1,11 +1,25 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router";
-import { Mic, ChevronLeft, Play, Lightbulb, Send } from "lucide-react";
+import { Mic, ChevronLeft, Play, Lightbulb, Send, AlertCircle } from "lucide-react";
 import { motion } from "motion/react";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { useMotorcycles } from "@/hooks/useMotorcycles";
+import { useDiagnosis } from "@/hooks/useDiagnosis";
 
 export function AudioDiagnosisScreen() {
   const navigate = useNavigate();
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { user } = useAuthContext();
+  const { selectedMotorcycle } = useMotorcycles(user?.uid);
+  const motorcycleInfo = selectedMotorcycle
+    ? `${selectedMotorcycle.brand} ${selectedMotorcycle.model} ${selectedMotorcycle.year}`
+    : "";
+
+  const { diagnoseByAudio, loading: isAnalyzing, error } = useDiagnosis({
+    userId: user?.uid || "",
+    motorcycleId: selectedMotorcycle?.id || "",
+    motorcycleInfo,
+  });
+
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -34,13 +48,15 @@ export function AudioDiagnosisScreen() {
     setAudioUrl(null);
   };
 
-  const handleSubmit = () => {
-    setIsAnalyzing(true);
-    setTimeout(() => {
-      navigate("/result/2");
-    }, 3000);
+  const handleSubmit = async () => {
+    if (!audioFile) return;
+    try {
+      const id = await diagnoseByAudio(audioFile);
+      navigate(`/result/${id}`);
+    } catch (err) {
+      // Error handled by hook
+    }
   };
-
 
   return (
     <div className="h-full bg-[#0F0F0F] flex flex-col">
@@ -49,10 +65,23 @@ export function AudioDiagnosisScreen() {
         <button onClick={() => navigate("/home")} className="w-10 h-10 bg-[#1A1A1A] rounded-full flex items-center justify-center">
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-xl font-[Space_Grotesk]" style={{ fontWeight: 700 }}>
-          Diagnóstico por Sonido
-        </h1>
+        <div>
+          <h1 className="text-xl font-[Space_Grotesk]" style={{ fontWeight: 700 }}>
+            Diagnóstico por Sonido
+          </h1>
+          {selectedMotorcycle && (
+            <p className="text-sm text-[#888888]">{selectedMotorcycle.brand} {selectedMotorcycle.model}</p>
+          )}
+        </div>
       </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="mx-6 mb-4 bg-[#E74C3C]/10 border border-[#E74C3C]/30 rounded-2xl px-4 py-3 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-[#E74C3C] flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-[#E74C3C]">{error}</p>
+        </div>
+      )}
 
       {isAnalyzing ? (
         <div className="flex-1 flex flex-col items-center justify-center px-8">
@@ -64,7 +93,11 @@ export function AudioDiagnosisScreen() {
           <p className="text-xl font-[Space_Grotesk] mb-2" style={{ fontWeight: 600 }}>
             Procesando audio con IA...
           </p>
-          <p className="text-[#888888] text-center">Analizando patrones de sonido y frecuencias</p>
+          <p className="text-[#888888] text-center">
+            {selectedMotorcycle
+              ? `Analizando sonidos de tu ${motorcycleInfo}`
+              : "Analizando patrones de sonido y frecuencias"}
+          </p>
         </div>
       ) : (
         <>
@@ -72,18 +105,12 @@ export function AudioDiagnosisScreen() {
           <div className="flex-1 flex flex-col items-center justify-center px-8">
             {!audioFile ? (
               <>
-                {/* Microphone button */}
-                <motion.button
-                  onClick={handleRecord}
-                  className="relative mb-8"
-                  whileTap={{ scale: 0.95 }}
-                >
+                <motion.button onClick={handleRecord} className="relative mb-8" whileTap={{ scale: 0.95 }}>
                   <div className="w-40 h-40 bg-gradient-to-br from-[#FF6B2B] to-[#FF8C5A] rounded-full flex items-center justify-center shadow-2xl shadow-[#FF6B2B]/50 hover:scale-105 transition-transform">
                     <Mic className="w-16 h-16 text-white" />
                   </div>
                 </motion.button>
 
-                {/* Status text */}
                 <p className="text-xl font-[Space_Grotesk] mb-2" style={{ fontWeight: 600 }}>
                   Grabar sonido
                 </p>
@@ -93,7 +120,6 @@ export function AudioDiagnosisScreen() {
               </>
             ) : (
               <>
-                {/* Audio recorded */}
                 <div className="w-40 h-40 bg-[#2ECC71]/10 rounded-full flex items-center justify-center mb-8 border-4 border-[#2ECC71]">
                   <Mic className="w-16 h-16 text-[#2ECC71]" />
                 </div>
@@ -105,19 +131,12 @@ export function AudioDiagnosisScreen() {
                   {audioFile.name} ({(audioFile.size / 1024).toFixed(1)} KB)
                 </p>
 
-                {/* Action buttons */}
                 <div className="flex gap-4">
-                  <button
-                    onClick={handlePlay}
-                    className="px-6 py-3 bg-[#1A1A1A] hover:bg-[#2A2A2A] rounded-2xl flex items-center gap-2 transition-colors"
-                  >
+                  <button onClick={handlePlay} className="px-6 py-3 bg-[#1A1A1A] hover:bg-[#2A2A2A] rounded-2xl flex items-center gap-2 transition-colors">
                     <Play className="w-5 h-5" />
                     <span>Reproducir</span>
                   </button>
-                  <button
-                    onClick={handleRetake}
-                    className="px-6 py-3 bg-[#1A1A1A] hover:bg-[#2A2A2A] rounded-2xl transition-colors"
-                  >
+                  <button onClick={handleRetake} className="px-6 py-3 bg-[#1A1A1A] hover:bg-[#2A2A2A] rounded-2xl transition-colors">
                     Grabar otra
                   </button>
                 </div>
@@ -136,14 +155,7 @@ export function AudioDiagnosisScreen() {
           </div>
 
           {/* Hidden audio input */}
-          <input
-            ref={audioInputRef}
-            type="file"
-            accept="audio/*"
-            capture="user"
-            onChange={handleFileChange}
-            className="hidden"
-          />
+          <input ref={audioInputRef} type="file" accept="audio/*" capture="user" onChange={handleFileChange} className="hidden" />
 
           {/* Tips section */}
           <div className="px-6 pb-6">

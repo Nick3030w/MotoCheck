@@ -1,10 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ChevronLeft, ChevronDown, ChevronUp, Bookmark, MapPin, Share2, AlertCircle, CheckCircle, Wrench, Video } from "lucide-react";
+import { ChevronLeft, ChevronDown, ChevronUp, MapPin, Share2, AlertCircle, AlertTriangle, CheckCircle, Wrench, Video, Loader2 } from "lucide-react";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { useDiagnostics } from "@/hooks/useDiagnostics";
+import type { Diagnosis, Severity } from "@/types";
 
 export function DiagnosisResultScreen() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuthContext();
+  const { getDiagnosisById } = useDiagnostics(user?.uid);
+  const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
+  const [loading, setLoading] = useState(true);
+
   const [expandedSections, setExpandedSections] = useState({
     cause: true,
     symptoms: false,
@@ -13,9 +21,61 @@ export function DiagnosisResultScreen() {
     diy: false,
   });
 
+  useEffect(() => {
+    async function loadDiagnosis() {
+      if (!id) return;
+      try {
+        const result = await getDiagnosisById(id);
+        setDiagnosis(result);
+      } catch (err) {
+        console.error("Error loading diagnosis:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDiagnosis();
+  }, [id, getDiagnosisById]);
+
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
+
+  const getSeverityConfig = (severity: Severity) => {
+    switch (severity) {
+      case "crítico":
+        return { icon: AlertTriangle, color: "#E74C3C", label: "Crítico", bg: "bg-[#E74C3C]/20", border: "border-[#E74C3C]" };
+      case "moderado":
+        return { icon: AlertCircle, color: "#F39C12", label: "Moderado", bg: "bg-[#F39C12]/20", border: "border-[#F39C12]" };
+      case "leve":
+        return { icon: CheckCircle, color: "#2ECC71", label: "Leve", bg: "bg-[#2ECC71]/20", border: "border-[#2ECC71]" };
+      default:
+        return { icon: AlertCircle, color: "#888888", label: severity, bg: "bg-[#888888]/20", border: "border-[#888888]" };
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="h-full bg-[#0F0F0F] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#FF6B2B] animate-spin" />
+      </div>
+    );
+  }
+
+  if (!diagnosis) {
+    return (
+      <div className="h-full bg-[#0F0F0F] flex flex-col items-center justify-center px-8">
+        <AlertCircle className="w-16 h-16 text-[#888888] mb-4" />
+        <p className="text-[#888888] text-center mb-4">No se encontró el diagnóstico</p>
+        <button onClick={() => navigate("/home")} className="px-6 py-3 bg-[#FF6B2B] rounded-2xl">
+          Volver al inicio
+        </button>
+      </div>
+    );
+  }
+
+  const { result } = diagnosis;
+  const severityConfig = getSeverityConfig(result.severity);
+  const SeverityIcon = severityConfig.icon;
 
   return (
     <div className="h-full bg-[#0F0F0F] overflow-y-auto">
@@ -35,113 +95,85 @@ export function DiagnosisResultScreen() {
       <div className="px-6 py-6 space-y-6 pb-24">
         {/* Severity badge */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-[#F39C12]/20 border border-[#F39C12] px-4 py-2 rounded-full">
-            <AlertCircle className="w-4 h-4 text-[#F39C12]" />
-            <span className="text-sm text-[#F39C12] font-[Space_Grotesk]" style={{ fontWeight: 600 }}>
-              Moderado
+          <div className={`flex items-center gap-2 ${severityConfig.bg} border ${severityConfig.border} px-4 py-2 rounded-full`}>
+            <SeverityIcon className="w-4 h-4" style={{ color: severityConfig.color }} />
+            <span className="text-sm font-[Space_Grotesk]" style={{ fontWeight: 600, color: severityConfig.color }}>
+              {severityConfig.label}
             </span>
           </div>
           <div className="flex items-center gap-2 text-sm text-[#888888]">
-            <span>92% certeza</span>
+            <span>{result.confidence}% certeza</span>
           </div>
         </div>
 
         {/* Main fault card */}
         <div className="bg-gradient-to-br from-[#1A1A1A] to-[#2A2A2A] rounded-3xl p-6 border border-[#888888]/10">
-          <h2 className="text-2xl font-[Space_Grotesk] mb-4" style={{ fontWeight: 700 }}>
-            Fallo en bujías de encendido
+          <h2 className="text-2xl font-[Space_Grotesk] mb-3" style={{ fontWeight: 700 }}>
+            {result.title}
           </h2>
+          <p className="text-sm text-[#888888] leading-relaxed mb-4">{result.description}</p>
 
-          {/* Motorcycle diagram */}
-          <div className="bg-[#0F0F0F] rounded-2xl p-6 mb-4 relative overflow-hidden">
-            <div className="text-center text-[#888888] mb-2 text-sm">Motor - Sistema de encendido</div>
-            <div className="flex items-center justify-center">
-              {/* Simplified motorcycle engine icon */}
-              <div className="relative">
-                <svg className="w-48 h-32 text-[#888888]" viewBox="0 0 200 120" fill="currentColor">
-                  <rect x="60" y="20" width="80" height="80" rx="8" opacity="0.3" />
-                  <rect x="80" y="30" width="40" height="60" rx="4" className="text-[#FF6B2B]" />
-                  <circle cx="100" cy="60" r="8" className="text-[#FF6B2B]" />
-                </svg>
-                {/* Highlight pulse */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-[#FF6B2B]/30 rounded-full animate-pulse" />
-              </div>
+          {/* Affected component */}
+          <div className="bg-[#0F0F0F] rounded-2xl p-4 relative overflow-hidden">
+            <div className="text-center text-[#FF6B2B] text-sm font-[Space_Grotesk]" style={{ fontWeight: 600 }}>
+              Componente afectado: {result.affectedComponent}
             </div>
-            <p className="text-center text-sm text-[#FF6B2B] mt-2">Componente afectado resaltado</p>
           </div>
         </div>
 
         {/* Collapsible sections */}
         <div className="space-y-3">
-          {/* Causa probable */}
+          {/* Causas */}
           <div className="bg-[#1A1A1A] rounded-2xl overflow-hidden border border-[#888888]/10">
-            <button
-              onClick={() => toggleSection("cause")}
-              className="w-full px-5 py-4 flex items-center justify-between"
-            >
-              <h3 className="font-[Space_Grotesk]" style={{ fontWeight: 600 }}>
-                Causa probable
-              </h3>
+            <button onClick={() => toggleSection("cause")} className="w-full px-5 py-4 flex items-center justify-between">
+              <h3 className="font-[Space_Grotesk]" style={{ fontWeight: 600 }}>Causas probables</h3>
               {expandedSections.cause ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
             </button>
             {expandedSections.cause && (
-              <div className="px-5 pb-4 text-sm text-[#888888] leading-relaxed">
-                Las bujías han acumulado depósitos de carbono o están desgastadas por el uso prolongado. Esto impide
-                una chispa adecuada, causando fallos en la combustión.
+              <div className="px-5 pb-4 space-y-2">
+                {result.causes.map((cause, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <span className="text-[#FF6B2B] mt-1">•</span>
+                    <span className="text-sm text-[#888888] leading-relaxed">{cause}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
-          {/* Síntomas detectados */}
+          {/* Síntomas */}
           <div className="bg-[#1A1A1A] rounded-2xl overflow-hidden border border-[#888888]/10">
-            <button
-              onClick={() => toggleSection("symptoms")}
-              className="w-full px-5 py-4 flex items-center justify-between"
-            >
-              <h3 className="font-[Space_Grotesk]" style={{ fontWeight: 600 }}>
-                Síntomas detectados
-              </h3>
+            <button onClick={() => toggleSection("symptoms")} className="w-full px-5 py-4 flex items-center justify-between">
+              <h3 className="font-[Space_Grotesk]" style={{ fontWeight: 600 }}>Síntomas detectados</h3>
               {expandedSections.symptoms ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
             </button>
             {expandedSections.symptoms && (
               <div className="px-5 pb-4 space-y-2">
-                {["Arranque difícil o lento", "Ralentí irregular", "Pérdida de potencia", "Mayor consumo de combustible"].map(
-                  (symptom, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <CheckCircle className="w-4 h-4 text-[#2ECC71] flex-shrink-0" />
-                      <span className="text-sm text-[#888888]">{symptom}</span>
-                    </div>
-                  )
-                )}
+                {result.symptoms.map((symptom, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <CheckCircle className="w-4 h-4 text-[#2ECC71] flex-shrink-0" />
+                    <span className="text-sm text-[#888888]">{symptom}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
-          {/* Solución recomendada */}
+          {/* Soluciones */}
           <div className="bg-[#1A1A1A] rounded-2xl overflow-hidden border border-[#888888]/10">
-            <button
-              onClick={() => toggleSection("solution")}
-              className="w-full px-5 py-4 flex items-center justify-between"
-            >
-              <h3 className="font-[Space_Grotesk]" style={{ fontWeight: 600 }}>
-                Solución recomendada
-              </h3>
+            <button onClick={() => toggleSection("solution")} className="w-full px-5 py-4 flex items-center justify-between">
+              <h3 className="font-[Space_Grotesk]" style={{ fontWeight: 600 }}>Solución recomendada</h3>
               {expandedSections.solution ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
             </button>
             {expandedSections.solution && (
               <div className="px-5 pb-4 space-y-3">
-                {[
-                  { step: "Adquiere bujías nuevas NGK o Denso compatibles", icon: "🔧" },
-                  { step: "Retira la tapa del motor y desconecta cables", icon: "⚡" },
-                  { step: "Desenrosca las bujías viejas con llave de 16mm", icon: "🔩" },
-                  { step: "Instala nuevas bujías con torque de 25 Nm", icon: "✅" },
-                ].map((item, i) => (
+                {result.solutions.map((item, i) => (
                   <div key={i} className="flex items-start gap-3">
                     <div className="w-8 h-8 bg-[#FF6B2B]/10 rounded-lg flex items-center justify-center flex-shrink-0 text-lg">
                       {item.icon}
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm text-[#888888]">{item.step}</p>
+                      <p className="text-sm text-[#888888]">{item.description}</p>
                     </div>
                   </div>
                 ))}
@@ -150,64 +182,60 @@ export function DiagnosisResultScreen() {
           </div>
 
           {/* Costo estimado */}
-          <div className="bg-[#1A1A1A] rounded-2xl overflow-hidden border border-[#888888]/10">
-            <button
-              onClick={() => toggleSection("cost")}
-              className="w-full px-5 py-4 flex items-center justify-between"
-            >
-              <h3 className="font-[Space_Grotesk]" style={{ fontWeight: 600 }}>
-                Costo estimado
-              </h3>
-              {expandedSections.cost ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-            </button>
-            {expandedSections.cost && (
-              <div className="px-5 pb-4 space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-[#888888]">Bujías (4 unidades)</span>
-                  <span className="text-white">$800 - $1,200</span>
+          {result.estimatedCost && (
+            <div className="bg-[#1A1A1A] rounded-2xl overflow-hidden border border-[#888888]/10">
+              <button onClick={() => toggleSection("cost")} className="w-full px-5 py-4 flex items-center justify-between">
+                <h3 className="font-[Space_Grotesk]" style={{ fontWeight: 600 }}>Costo estimado</h3>
+                {expandedSections.cost ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+              </button>
+              {expandedSections.cost && (
+                <div className="px-5 pb-4 space-y-3">
+                  {result.estimatedCost.parts.map((part, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm">
+                      <span className="text-[#888888]">{part.name}</span>
+                      <span className="text-white">${part.min.toLocaleString()} - ${part.max.toLocaleString()}</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-[#888888]">Mano de obra</span>
+                    <span className="text-white">
+                      ${result.estimatedCost.labor.min.toLocaleString()} - ${result.estimatedCost.labor.max.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="h-px bg-[#888888]/20 my-2" />
+                  <div className="flex items-center justify-between">
+                    <span className="font-[Space_Grotesk]" style={{ fontWeight: 600 }}>Total aproximado</span>
+                    <span className="text-xl text-[#FF6B2B] font-[Space_Grotesk]" style={{ fontWeight: 700 }}>
+                      ${result.estimatedCost.totalMin.toLocaleString()} - ${result.estimatedCost.totalMax.toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#888888]">* Precios en {result.estimatedCost.currency}</p>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-[#888888]">Mano de obra (taller)</span>
-                  <span className="text-white">$300 - $500</span>
-                </div>
-                <div className="h-px bg-[#888888]/20 my-2" />
-                <div className="flex items-center justify-between">
-                  <span className="font-[Space_Grotesk]" style={{ fontWeight: 600 }}>
-                    Total aproximado
-                  </span>
-                  <span className="text-xl text-[#FF6B2B] font-[Space_Grotesk]" style={{ fontWeight: 700 }}>
-                    $1,100 - $1,700
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* DIY */}
           <div className="bg-[#1A1A1A] rounded-2xl overflow-hidden border border-[#888888]/10">
-            <button
-              onClick={() => toggleSection("diy")}
-              className="w-full px-5 py-4 flex items-center justify-between"
-            >
-              <h3 className="font-[Space_Grotesk]" style={{ fontWeight: 600 }}>
-                ¿Puedo arreglarlo yo?
-              </h3>
+            <button onClick={() => toggleSection("diy")} className="w-full px-5 py-4 flex items-center justify-between">
+              <h3 className="font-[Space_Grotesk]" style={{ fontWeight: 600 }}>¿Puedo arreglarlo yo?</h3>
               {expandedSections.diy ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
             </button>
             {expandedSections.diy && (
               <div className="px-5 pb-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <Wrench className="w-5 h-5 text-[#2ECC71] flex-shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3">
+                  <Wrench className={`w-5 h-5 flex-shrink-0 mt-0.5 ${result.canDIY ? "text-[#2ECC71]" : "text-[#E74C3C]"}`} />
                   <div>
                     <p className="text-sm text-white mb-2">
-                      <span className="text-[#2ECC71] font-[Space_Grotesk]" style={{ fontWeight: 600 }}>
-                        Sí, es un trabajo DIY moderado
+                      <span className={`font-[Space_Grotesk] ${result.canDIY ? "text-[#2ECC71]" : "text-[#E74C3C]"}`} style={{ fontWeight: 600 }}>
+                        {result.canDIY
+                          ? `Sí, dificultad: ${result.diyDifficulty || "moderada"}`
+                          : "No recomendado, acude a un taller"}
                       </span>
                     </p>
-                    <p className="text-sm text-[#888888] leading-relaxed">
-                      Requiere herramientas básicas y conocimiento mecánico medio. Si no tienes experiencia, considera
-                      acudir a un taller para evitar daños.
-                    </p>
+                    {result.diyNotes && (
+                      <p className="text-sm text-[#888888] leading-relaxed">{result.diyNotes}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -238,8 +266,7 @@ export function DiagnosisResultScreen() {
             className="w-full bg-[#1A1A1A] hover:bg-[#2A2A2A] py-4 rounded-3xl flex items-center justify-center gap-2 font-[Space_Grotesk]"
             style={{ fontWeight: 600 }}
           >
-            <Bookmark className="w-5 h-5" />
-            Guardar diagnóstico
+            Ver historial
           </button>
         </div>
       </div>

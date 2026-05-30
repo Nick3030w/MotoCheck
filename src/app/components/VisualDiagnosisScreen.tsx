@@ -1,12 +1,27 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router";
-import { Camera, Upload, ChevronLeft, Lightbulb, Image } from "lucide-react";
+import { Camera, ChevronLeft, Lightbulb, Image, AlertCircle } from "lucide-react";
 import { motion } from "motion/react";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { useMotorcycles } from "@/hooks/useMotorcycles";
+import { useDiagnosis } from "@/hooks/useDiagnosis";
 
 export function VisualDiagnosisScreen() {
   const navigate = useNavigate();
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { user } = useAuthContext();
+  const { selectedMotorcycle } = useMotorcycles(user?.uid);
+  const motorcycleInfo = selectedMotorcycle
+    ? `${selectedMotorcycle.brand} ${selectedMotorcycle.model} ${selectedMotorcycle.year}`
+    : "";
+
+  const { diagnoseByImage, loading: isAnalyzing, error } = useDiagnosis({
+    userId: user?.uid || "",
+    motorcycleId: selectedMotorcycle?.id || "",
+    motorcycleInfo,
+  });
+
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -21,6 +36,7 @@ export function VisualDiagnosisScreen() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setImageFile(file);
       const reader = new FileReader();
       reader.onload = (event) => {
         setCapturedImage(event.target?.result as string);
@@ -29,15 +45,19 @@ export function VisualDiagnosisScreen() {
     }
   };
 
-  const handleAnalyze = () => {
-    setIsAnalyzing(true);
-    setTimeout(() => {
-      navigate("/result/1");
-    }, 3000);
+  const handleAnalyze = async () => {
+    if (!imageFile) return;
+    try {
+      const id = await diagnoseByImage(imageFile);
+      navigate(`/result/${id}`);
+    } catch (err) {
+      // Error handled by hook, shown in UI
+    }
   };
 
   const handleRetake = () => {
     setCapturedImage(null);
+    setImageFile(null);
   };
 
   return (
@@ -50,10 +70,23 @@ export function VisualDiagnosisScreen() {
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-xl font-[Space_Grotesk]" style={{ fontWeight: 700 }}>
-          Diagnóstico Visual
-        </h1>
+        <div>
+          <h1 className="text-xl font-[Space_Grotesk]" style={{ fontWeight: 700 }}>
+            Diagnóstico Visual
+          </h1>
+          {selectedMotorcycle && (
+            <p className="text-sm text-[#888888]">{selectedMotorcycle.brand} {selectedMotorcycle.model}</p>
+          )}
+        </div>
       </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="mx-6 mb-4 bg-[#E74C3C]/10 border border-[#E74C3C]/30 rounded-2xl px-4 py-3 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-[#E74C3C] flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-[#E74C3C]">{error}</p>
+        </div>
+      )}
 
       {isAnalyzing ? (
         <div className="flex-1 flex flex-col items-center justify-center px-8">
@@ -65,7 +98,11 @@ export function VisualDiagnosisScreen() {
           <p className="text-xl font-[Space_Grotesk] mb-2" style={{ fontWeight: 600 }}>
             Analizando imagen con IA...
           </p>
-          <p className="text-[#888888] text-center">Identificando componentes y posibles fallas</p>
+          <p className="text-[#888888] text-center">
+            {selectedMotorcycle
+              ? `Identificando fallas para tu ${motorcycleInfo}`
+              : "Identificando componentes y posibles fallas"}
+          </p>
         </div>
       ) : (
         <>
@@ -91,7 +128,6 @@ export function VisualDiagnosisScreen() {
                     Fotografía el componente de tu moto que presenta la falla
                   </p>
 
-                  {/* Capture from camera */}
                   <button
                     onClick={handleCapture}
                     className="w-full bg-gradient-to-br from-[#FF6B2B] to-[#FF8C5A] hover:opacity-90 py-4 rounded-2xl flex items-center justify-center gap-2 mb-3 transition-opacity"
@@ -102,7 +138,6 @@ export function VisualDiagnosisScreen() {
                     </span>
                   </button>
 
-                  {/* Upload from gallery */}
                   <button
                     onClick={handleGallery}
                     className="w-full bg-[#2A2A2A] hover:bg-[#3A3A3A] py-3 rounded-2xl flex items-center justify-center gap-2 transition-colors text-sm"
@@ -116,29 +151,13 @@ export function VisualDiagnosisScreen() {
           </div>
 
           {/* Hidden file inputs */}
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-          <input
-            ref={galleryInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="hidden"
-          />
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileChange} className="hidden" />
+          <input ref={galleryInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
 
           {/* Action buttons when photo is captured */}
           {capturedImage && (
             <div className="px-6 mb-6 flex items-center justify-center gap-4">
-              <button
-                onClick={handleRetake}
-                className="px-6 py-3 bg-[#1A1A1A] rounded-2xl hover:bg-[#2A2A2A] transition-colors"
-              >
+              <button onClick={handleRetake} className="px-6 py-3 bg-[#1A1A1A] rounded-2xl hover:bg-[#2A2A2A] transition-colors">
                 Tomar otra
               </button>
               <button
