@@ -2,25 +2,20 @@ import { useNavigate } from "react-router";
 import { ChevronRight, User, Bike, Bell, Globe, Download, HelpCircle, Info, LogOut, Loader2 } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useDiagnostics } from "@/hooks/useDiagnostics";
+import { useState } from "react";
 
 export function SettingsScreen() {
   const navigate = useNavigate();
   const { user, profile, logout } = useAuthContext();
+  const { diagnostics } = useDiagnostics(user?.uid);
+  const [exporting, setExporting] = useState(false);
 
   const handleLogout = async () => {
     await logout();
     navigate("/login");
   };
 
-  const displayName = user?.displayName || profile?.displayName || "Usuario";
-  const displayEmail = user?.email || "";
-  const totalDiagnostics = profile?.totalDiagnostics || 0;
-  const resolvedDiagnostics = profile?.resolvedDiagnostics || 0;
-
-  const { diagnostics } = useDiagnostics(user?.uid);
-  const [exporting, setExporting] = useState(false);
-
-  const handleExportHistory = async () => {
+  const handleExportHistory = () => {
     if (diagnostics.length === 0) {
       alert("No tienes diagnósticos para exportar.");
       return;
@@ -29,45 +24,41 @@ export function SettingsScreen() {
     setExporting(true);
 
     try {
-      let content = `═══════════════════════════════════════\n`;
-      content += `  MOTOCHECK - Historial de Diagnósticos\n`;
-      content += `  Usuario: ${displayName}\n`;
-      content += `  Fecha de exportación: ${new Date().toLocaleDateString("es-CO")}\n`;
-      content += `═══════════════════════════════════════\n\n`;
+      let content = "═══════════════════════════════════════\n";
+      content += "    MOTOCHECK - Historial de Diagnósticos\n";
+      content += "═══════════════════════════════════════\n\n";
+      content += `Usuario: ${user?.displayName || "Usuario"}\n`;
+      content += `Correo: ${user?.email || ""}\n`;
+      content += `Fecha de exportación: ${new Date().toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}\n`;
+      content += `Total de diagnósticos: ${diagnostics.length}\n\n`;
 
-      diagnostics.forEach((d, index) => {
-        const date = new Date(d.createdAt).toLocaleDateString("es-CO", {
-          day: "numeric", month: "long", year: "numeric",
-        });
-
+      diagnostics.forEach((diag, index) => {
         content += `───────────────────────────────────────\n`;
-        content += `  Diagnóstico #${index + 1}\n`;
+        content += `DIAGNÓSTICO #${index + 1}\n`;
         content += `───────────────────────────────────────\n`;
-        content += `Fecha: ${date}\n`;
-        content += `Tipo: ${d.type === "text" ? "Chat IA" : d.type === "image" ? "Visual" : "Audio"}\n`;
-        content += `Título: ${d.result.title}\n`;
-        content += `Gravedad: ${d.result.severity.toUpperCase()}\n`;
-        content += `Confianza: ${d.result.confidence}%\n`;
-        content += `Componente afectado: ${d.result.affectedComponent}\n\n`;
-        content += `Descripción:\n${d.result.description}\n\n`;
-        content += `Causas:\n${d.result.causes.map((c) => `  • ${c}`).join("\n")}\n\n`;
-        content += `Síntomas:\n${d.result.symptoms.map((s) => `  • ${s}`).join("\n")}\n\n`;
-        content += `Soluciones:\n${d.result.solutions.map((s) => `  ${s.step}. ${s.description}`).join("\n")}\n\n`;
-
-        if (d.result.estimatedCost) {
-          content += `Costo estimado: $${d.result.estimatedCost.totalMin.toLocaleString()} - $${d.result.estimatedCost.totalMax.toLocaleString()} COP\n\n`;
+        content += `Título: ${diag.result.title}\n`;
+        content += `Fecha: ${new Date(diag.createdAt).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}\n`;
+        content += `Tipo: ${diag.type === "text" ? "Chat IA" : diag.type === "image" ? "Visual" : "Audio"}\n`;
+        content += `Gravedad: ${diag.result.severity.toUpperCase()}\n`;
+        content += `Certeza: ${diag.result.confidence}%\n`;
+        content += `Componente: ${diag.result.affectedComponent}\n\n`;
+        content += `Descripción:\n${diag.result.description}\n\n`;
+        content += `Causas:\n`;
+        diag.result.causes.forEach((c) => { content += `  • ${c}\n`; });
+        content += `\nSíntomas:\n`;
+        diag.result.symptoms.forEach((s) => { content += `  • ${s}\n`; });
+        content += `\nSoluciones:\n`;
+        diag.result.solutions.forEach((s) => { content += `  ${s.step}. ${s.description}\n`; });
+        if (diag.result.estimatedCost) {
+          content += `\nCosto estimado: $${diag.result.estimatedCost.totalMin.toLocaleString()} - $${diag.result.estimatedCost.totalMax.toLocaleString()} COP\n`;
         }
-
-        content += `¿Reparación casera?: ${d.result.canDIY ? `Sí (${d.result.diyDifficulty})` : "No recomendado"}\n`;
+        content += `\nReparación casera: ${diag.result.canDIY ? `Sí (${diag.result.diyDifficulty})` : "No recomendado"}\n`;
         content += `\n`;
       });
 
       content += `═══════════════════════════════════════\n`;
-      content += `  Total: ${diagnostics.length} diagnósticos\n`;
-      content += `  Generado por MOTOCHECK\n`;
-      content += `═══════════════════════════════════════\n`;
+      content += `Generado por MotoCheck\n`;
 
-      // Descargar como archivo .txt
       const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -83,6 +74,11 @@ export function SettingsScreen() {
       setExporting(false);
     }
   };
+
+  const displayName = user?.displayName || profile?.displayName || "Usuario";
+  const displayEmail = user?.email || "";
+  const totalDiagnostics = profile?.totalDiagnostics || 0;
+  const resolvedDiagnostics = profile?.resolvedDiagnostics || 0;
 
   return (
     <div className="h-full bg-[#0F0F0F] overflow-y-auto pb-24">
@@ -192,15 +188,15 @@ export function SettingsScreen() {
         <div>
           <h3 className="text-sm text-[#888888] mb-3 uppercase tracking-wider">Datos</h3>
           <div className="bg-[#1A1A1A] rounded-2xl overflow-hidden border border-[#888888]/10">
-            <button className="w-full px-5 py-4 flex items-center gap-4 hover:bg-[#2A2A2A] transition-colors">
+            <button onClick={handleExportHistory} disabled={exporting} className="w-full px-5 py-4 flex items-center gap-4 hover:bg-[#2A2A2A] transition-colors disabled:opacity-50">
               <div className="w-10 h-10 bg-[#888888]/10 rounded-xl flex items-center justify-center">
-                <Download className="w-5 h-5 text-white" />
+                {exporting ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Download className="w-5 h-5 text-white" />}
               </div>
               <div className="flex-1 text-left">
                 <p className="font-[Space_Grotesk]" style={{ fontWeight: 600 }}>
                   Exportar historial
                 </p>
-                <p className="text-sm text-[#888888]">Descargar diagnósticos en PDF</p>
+                <p className="text-sm text-[#888888]">{exporting ? "Generando archivo..." : "Descargar diagnósticos"}</p>
               </div>
               <ChevronRight className="w-5 h-5 text-[#888888]" />
             </button>
