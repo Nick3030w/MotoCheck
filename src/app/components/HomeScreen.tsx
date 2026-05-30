@@ -1,13 +1,32 @@
 import { useNavigate } from "react-router";
-import { Camera, Mic, MessageCircle, Bell, ChevronRight, Activity } from "lucide-react";
+import { Camera, Mic, MessageCircle, Bell, ChevronRight, Activity, Plus } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useMotorcycles } from "@/hooks/useMotorcycles";
+import { useDiagnostics } from "@/hooks/useDiagnostics";
 
 export function HomeScreen() {
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user, profile } = useAuthContext();
+  const { motorcycles, selectedMotorcycle, loading: motosLoading } = useMotorcycles(user?.uid);
+  const { diagnostics, loading: diagLoading } = useDiagnostics(user?.uid);
 
   // Obtener primer nombre del usuario
   const firstName = user?.displayName?.split(" ")[0] || "Usuario";
+
+  // Estadísticas reales
+  const totalDiagnostics = profile?.totalDiagnostics || diagnostics.length;
+  const resolvedDiagnostics = profile?.resolvedDiagnostics || 0;
+
+  // Último diagnóstico
+  const lastDiagnosis = diagnostics[0];
+  const getTimeSince = (date: Date) => {
+    const now = new Date();
+    const diff = now.getTime() - new Date(date).getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days === 0) return "hoy";
+    if (days === 1) return "ayer";
+    return `hace ${days} días`;
+  };
 
   return (
     <div className="h-full bg-[#0F0F0F] overflow-y-auto">
@@ -21,28 +40,56 @@ export function HomeScreen() {
         </div>
         <button className="w-12 h-12 bg-[#1A1A1A] rounded-full flex items-center justify-center relative">
           <Bell className="w-5 h-5 text-white" />
-          <div className="absolute top-2 right-2 w-2 h-2 bg-[#FF6B2B] rounded-full" />
+          {diagnostics.length > 0 && (
+            <div className="absolute top-2 right-2 w-2 h-2 bg-[#FF6B2B] rounded-full" />
+          )}
         </button>
       </div>
 
       {/* Motorcycle card */}
-      <div className="mx-6 mb-6 bg-gradient-to-br from-[#1A1A1A] to-[#2A2A2A] rounded-3xl p-6 border border-[#888888]/10">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h3 className="text-xl font-[Space_Grotesk] mb-1" style={{ fontWeight: 600 }}>
-              Mi Ninja 400
-            </h3>
-            <p className="text-[#888888] text-sm">Kawasaki Ninja 400 · 2022</p>
+      {selectedMotorcycle ? (
+        <div
+          onClick={() => navigate("/settings/motorcycles")}
+          className="mx-6 mb-6 bg-gradient-to-br from-[#1A1A1A] to-[#2A2A2A] rounded-3xl p-6 border border-[#888888]/10 cursor-pointer hover:border-[#FF6B2B]/30 transition-colors"
+        >
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h3 className="text-xl font-[Space_Grotesk] mb-1" style={{ fontWeight: 600 }}>
+                {selectedMotorcycle.name}
+              </h3>
+              <p className="text-[#888888] text-sm">
+                {selectedMotorcycle.brand} {selectedMotorcycle.model} · {selectedMotorcycle.year}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-[#FF6B2B]/10 rounded-full flex items-center justify-center">
+              <span className="text-2xl">{selectedMotorcycle.emoji}</span>
+            </div>
           </div>
-          <div className="w-12 h-12 bg-[#FF6B2B]/10 rounded-full flex items-center justify-center">
-            <span className="text-2xl">🏍️</span>
+          <div className="flex items-center gap-2 text-sm text-[#888888]">
+            <Activity className="w-4 h-4" />
+            <span>
+              {lastDiagnosis
+                ? `Último diagnóstico: ${getTimeSince(lastDiagnosis.createdAt)}`
+                : "Sin diagnósticos aún"}
+            </span>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-sm text-[#888888]">
-          <Activity className="w-4 h-4" />
-          <span>Último diagnóstico: hace 3 días</span>
+      ) : (
+        <div
+          onClick={() => navigate("/settings/motorcycles")}
+          className="mx-6 mb-6 bg-gradient-to-br from-[#1A1A1A] to-[#2A2A2A] rounded-3xl p-6 border border-dashed border-[#FF6B2B]/50 cursor-pointer hover:border-[#FF6B2B] transition-colors"
+        >
+          <div className="flex items-center justify-center gap-3">
+            <Plus className="w-6 h-6 text-[#FF6B2B]" />
+            <div>
+              <h3 className="text-lg font-[Space_Grotesk]" style={{ fontWeight: 600 }}>
+                Agrega tu moto
+              </h3>
+              <p className="text-[#888888] text-sm">Para diagnósticos más precisos</p>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Action cards */}
       <div className="px-6 mb-6">
@@ -108,21 +155,21 @@ export function HomeScreen() {
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-[#1A1A1A] rounded-2xl p-4 text-center">
             <p className="text-2xl font-[Space_Grotesk] text-[#FF6B2B] mb-1" style={{ fontWeight: 700 }}>
-              12
+              {totalDiagnostics}
             </p>
             <p className="text-xs text-[#888888]">Diagnósticos</p>
           </div>
           <div className="bg-[#1A1A1A] rounded-2xl p-4 text-center">
             <p className="text-2xl font-[Space_Grotesk] text-[#2ECC71] mb-1" style={{ fontWeight: 700 }}>
-              9
+              {resolvedDiagnostics}
             </p>
             <p className="text-xs text-[#888888]">Resueltos</p>
           </div>
           <div className="bg-[#1A1A1A] rounded-2xl p-4 text-center">
             <p className="text-2xl font-[Space_Grotesk] text-[#FF6B2B] mb-1" style={{ fontWeight: 700 }}>
-              87
+              {motorcycles.length}
             </p>
-            <p className="text-xs text-[#888888]">Salud</p>
+            <p className="text-xs text-[#888888]">Motos</p>
           </div>
         </div>
       </div>
