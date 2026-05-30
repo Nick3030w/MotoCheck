@@ -1,15 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ChevronLeft, ChevronDown, ChevronUp, MapPin, Share2, AlertCircle, AlertTriangle, CheckCircle, Wrench, Video, Loader2 } from "lucide-react";
-import { useAuthContext } from "@/contexts/AuthContext";
-import { useDiagnostics } from "@/hooks/useDiagnostics";
+import { diagnosisRepository } from "@/repositories/diagnosis.repository";
 import type { Diagnosis, Severity } from "@/types";
 
 export function DiagnosisResultScreen() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { user } = useAuthContext();
-  const { getDiagnosisById } = useDiagnostics(user?.uid);
   const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -25,7 +22,7 @@ export function DiagnosisResultScreen() {
     async function loadDiagnosis() {
       if (!id) return;
       try {
-        const result = await getDiagnosisById(id);
+        const result = await diagnosisRepository.getById(id);
         setDiagnosis(result);
       } catch (err) {
         console.error("Error loading diagnosis:", err);
@@ -34,7 +31,7 @@ export function DiagnosisResultScreen() {
       }
     }
     loadDiagnosis();
-  }, [id, getDiagnosisById]);
+  }, [id]);
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));

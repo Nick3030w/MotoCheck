@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { ChevronLeft, Send, Loader2, Zap } from "lucide-react";
+import { ChevronLeft, Send, Loader2, Zap, RotateCcw } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useMotorcycles } from "@/hooks/useMotorcycles";
 import { useDiagnosis } from "@/hooks/useDiagnosis";
 import type { ChatMessage } from "@/types";
+
+const CHAT_STORAGE_KEY = "motocheck_chat_messages";
 
 export function ChatScreen() {
   const navigate = useNavigate();
@@ -20,25 +22,56 @@ export function ChatScreen() {
     motorcycleInfo,
   });
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "1",
-      role: "assistant",
-      content: selectedMotorcycle
-        ? `Hola, soy MOTOCHECK 🏍️ Veo que tienes una **${motorcycleInfo}**. Describe el problema que presenta tu moto y te ayudaré a diagnosticarlo.`
-        : "Hola, soy MOTOCHECK 🏍️ Describe el problema que presenta tu moto y te ayudaré a diagnosticarlo.",
-      timestamp: new Date(),
-    },
-  ]);
+  const getWelcomeMessage = (): ChatMessage => ({
+    id: "1",
+    role: "assistant",
+    content: selectedMotorcycle
+      ? `Hola, soy MOTOCHECK 🏍️ Veo que tienes una **${motorcycleInfo}**. Describe el problema que presenta tu moto y te ayudaré a diagnosticarlo.`
+      : "Hola, soy MOTOCHECK 🏍️ Describe el problema que presenta tu moto y te ayudaré a diagnosticarlo.",
+    timestamp: new Date(),
+  });
+
+  // Cargar mensajes guardados o iniciar con mensaje de bienvenida
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = sessionStorage.getItem(CHAT_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.map((msg: any) => ({ ...msg, timestamp: new Date(msg.timestamp) }));
+      }
+    } catch {}
+    return [getWelcomeMessage()];
+  });
+
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [messageCount, setMessageCount] = useState(0);
+  const [messageCount, setMessageCount] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem(CHAT_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.filter((msg: any) => msg.role === "user").length;
+      }
+    } catch {}
+    return 0;
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Guardar mensajes en sessionStorage cada vez que cambien
+  useEffect(() => {
+    sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
+  }, [messages]);
 
   // Auto-scroll al último mensaje
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
+
+  const handleNewChat = () => {
+    sessionStorage.removeItem(CHAT_STORAGE_KEY);
+    setMessages([getWelcomeMessage()]);
+    setMessageCount(0);
+  };
 
   const handleSend = async () => {
     if (!inputText.trim() || isTyping) return;
@@ -54,7 +87,7 @@ export function ChatScreen() {
     setMessages(updatedMessages);
     setInputText("");
     setIsTyping(true);
-    setMessageCount((prev) => prev + 1);
+    setMessageCount((prev: number) => prev + 1);
 
     try {
       const response = await sendChatMessage(updatedMessages);
@@ -84,6 +117,8 @@ export function ChatScreen() {
     try {
       setIsTyping(true);
       const id = await diagnoseByChat(messages);
+      // Limpiar chat después de generar diagnóstico
+      sessionStorage.removeItem(CHAT_STORAGE_KEY);
       navigate(`/result/${id}`);
     } catch (err) {
       const errorMessage: ChatMessage = {
@@ -112,6 +147,14 @@ export function ChatScreen() {
             {selectedMotorcycle ? `${selectedMotorcycle.brand} ${selectedMotorcycle.model}` : "MOTOCHECK en línea"}
           </p>
         </div>
+        {/* New chat button */}
+        <button
+          onClick={handleNewChat}
+          className="w-10 h-10 bg-[#1A1A1A] rounded-full flex items-center justify-center hover:bg-[#2A2A2A] transition-colors"
+          title="Nueva conversación"
+        >
+          <RotateCcw className="w-4 h-4 text-[#888888]" />
+        </button>
         <div className="w-3 h-3 bg-[#2ECC71] rounded-full animate-pulse" />
       </div>
 
