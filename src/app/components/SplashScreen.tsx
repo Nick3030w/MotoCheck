@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { motion } from "motion/react";
-import { Zap, Cpu } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 
 export function SplashScreen() {
@@ -38,12 +37,7 @@ export function SplashScreen() {
         transition={{ duration: 0.8, type: "spring" }}
         className="relative mb-8"
       >
-        <div className="w-32 h-32 bg-gradient-to-br from-[#FF6B2B] to-[#FF8C5A] rounded-3xl flex items-center justify-center shadow-lg shadow-[#FF6B2B]/50">
-          <div className="relative">
-            <Cpu className="w-16 h-16 text-white absolute top-0 left-0" strokeWidth={1.5} />
-            <Zap className="w-10 h-10 text-[#0F0F0F] absolute bottom-0 right-0" strokeWidth={3} />
-          </div>
-        </div>
+        <img src="/logo.png" alt="MotoCheck" className="w-48 h-48 object-contain" />
       </motion.div>
 
       {/* Brand name */}

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Cpu, Zap, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 
 export function LoginScreen() {
@@ -76,12 +76,7 @@ export function LoginScreen() {
     <div className="h-full bg-[#0F0F0F] flex flex-col px-8 pt-8 overflow-y-auto">
       {/* Logo */}
       <div className="flex items-center justify-center mb-8">
-        <div className="w-16 h-16 bg-gradient-to-br from-[#FF6B2B] to-[#FF8C5A] rounded-2xl flex items-center justify-center shadow-lg shadow-[#FF6B2B]/30">
-          <div className="relative">
-            <Cpu className="w-8 h-8 text-white absolute top-0 left-0" strokeWidth={1.5} />
-            <Zap className="w-5 h-5 text-[#0F0F0F] absolute bottom-0 right-0" strokeWidth={3} />
-          </div>
-        </div>
+        <img src="/logo.png" alt="MotoCheck" className="w-24 h-24 object-contain" />
       </div>
 
       {/* Tab switcher */}
