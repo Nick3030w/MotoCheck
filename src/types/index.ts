@@ -96,6 +96,11 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   chips?: string[];
+  // Adjuntos multimedia opcionales
+  imageBase64?: string;
+  imageMimeType?: string;
+  audioBase64?: string;
+  audioMimeType?: string;
 }
 
 // ============================================

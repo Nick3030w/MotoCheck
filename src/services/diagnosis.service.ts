@@ -136,10 +136,41 @@ export const diagnosisService = {
     const firstUserIndex = messages.findIndex((msg) => msg.role === "user");
     const relevantMessages = firstUserIndex >= 0 ? messages.slice(firstUserIndex) : messages;
 
-    const contents = relevantMessages.map((msg) => ({
-      role: msg.role === "user" ? "user" : "model",
-      parts: [{ text: msg.content }],
-    }));
+    const contents = relevantMessages.map((msg) => {
+      const parts: any[] = [];
+
+      // Agregar texto si existe
+      if (msg.content) {
+        parts.push({ text: msg.content });
+      }
+
+      // Agregar imagen adjunta si existe
+      if (msg.imageBase64 && msg.imageMimeType) {
+        parts.push({
+          inline_data: { data: msg.imageBase64, mime_type: msg.imageMimeType },
+        });
+        // Si no hay texto, agregar contexto
+        if (!msg.content) {
+          parts.unshift({ text: "El usuario envió esta imagen de su motocicleta. Analízala y responde sobre lo que observas." });
+        }
+      }
+
+      // Agregar audio adjunto si existe
+      if (msg.audioBase64 && msg.audioMimeType) {
+        parts.push({
+          inline_data: { data: msg.audioBase64, mime_type: msg.audioMimeType },
+        });
+        // Si no hay texto, agregar contexto
+        if (!msg.content && !msg.imageBase64) {
+          parts.unshift({ text: "El usuario envió este audio de su motocicleta. Analiza los sonidos y responde sobre lo que escuchas." });
+        }
+      }
+
+      return {
+        role: msg.role === "user" ? "user" : "model",
+        parts,
+      };
+    });
 
     return callGeminiAPI(contents, systemPrompt);
   },
