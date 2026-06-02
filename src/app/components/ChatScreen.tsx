@@ -307,6 +307,15 @@ export function ChatScreen() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Indicador de mensajes mínimos */}
+      {messageCount > 0 && messageCount < 3 && !isTyping && (
+        <div className="px-6 py-2">
+          <p className="text-xs text-[#888888] text-center">
+            Envía al menos 3 mensajes para poder generar un diagnóstico ({messageCount}/3)
+          </p>
+        </div>
+      )}
+
       {/* Generate diagnosis button (after 3+ messages from user) */}
       {messageCount >= 3 && !isTyping && (
         <div className="px-6 py-2">

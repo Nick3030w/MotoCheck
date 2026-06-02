@@ -233,6 +233,12 @@ export function DiagnosisResultScreen() {
                     {result.diyNotes && (
                       <p className="text-sm text-[#888888] leading-relaxed">{result.diyNotes}</p>
                     )}
+                    {/* Advertencia DIY */}
+                    <div className="mt-3 bg-[#FF6B2B]/10 border border-[#FF6B2B]/30 rounded-xl px-3 py-2">
+                      <p className="text-xs text-[#FF6B2B] leading-relaxed">
+                        ⚠️ Solo intenta reparar tu moto si tienes conocimientos técnicos previos. Una reparación mal hecha puede causar daños mayores o poner en riesgo tu seguridad.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
