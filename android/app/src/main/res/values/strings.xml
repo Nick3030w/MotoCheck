@@ -4,4 +4,5 @@
     <string name="title_activity_main">MotoCheck</string>
     <string name="package_name">com.motocheck.app</string>
     <string name="custom_url_scheme">com.motocheck.app</string>
+    <string name="server_client_id">1009709334512-bi9h8be9sfjthleonpa6qbij97n9om3h.apps.googleusercontent.com</string>
 </resources>

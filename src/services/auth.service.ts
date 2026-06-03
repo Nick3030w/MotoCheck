@@ -16,13 +16,23 @@ import type { LoginCredentials, RegisterCredentials } from "@/types";
 
 const googleProvider = new GoogleAuthProvider();
 
+/**
+ * Detecta si estamos en un entorno nativo de Capacitor
+ */
+function isNativePlatform(): boolean {
+  const cap = (window as any).Capacitor;
+  if (!cap) return false;
+  if (typeof cap.isNativePlatform === "function") return cap.isNativePlatform();
+  if (typeof cap.getPlatform === "function") return cap.getPlatform() !== "web";
+  return false;
+}
+
 export const authService = {
   /**
    * Registrar usuario con email y contraseña
    */
   async register({ email, password, displayName }: RegisterCredentials): Promise<FirebaseUser> {
     const credential = await createUserWithEmailAndPassword(auth, email, password);
-    // Actualizar el nombre del usuario
     await updateProfile(credential.user, { displayName });
     return credential.user;
   },
@@ -36,10 +46,34 @@ export const authService = {
   },
 
   /**
-   * Iniciar sesión con Google usando popup
-   * En Capacitor Android, el popup se abre como Chrome Custom Tab
+   * Iniciar sesión con Google
+   * - En nativo (Android): usa el plugin @codetrix-studio/capacitor-google-auth
+   *   que muestra el selector nativo de Google y devuelve un idToken.
+   *   Luego usamos ese token para autenticar con Firebase.
+   * - En web: usa signInWithPopup normal de Firebase.
    */
   async loginWithGoogle(): Promise<FirebaseUser> {
+    if (isNativePlatform()) {
+      // Importar dinámicamente el plugin nativo
+      const { GoogleAuth } = await import("@codetrix-studio/capacitor-google-auth");
+      
+      // Inicializar el plugin (necesario en Android)
+      await GoogleAuth.initialize({
+        clientId: "1009709334512-bi9h8be9sfjthleonpa6qbij97n9om3h.apps.googleusercontent.com",
+        scopes: ["profile", "email"],
+        grantOfflineAccess: true,
+      });
+
+      // Abrir selector nativo de cuenta Google
+      const googleUser = await GoogleAuth.signIn();
+      
+      // Usar el idToken para autenticar con Firebase
+      const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+      const result = await signInWithCredential(auth, credential);
+      return result.user;
+    }
+
+    // En web, usar popup normal
     const credential = await signInWithPopup(auth, googleProvider);
     return credential.user;
   },
@@ -48,6 +82,15 @@ export const authService = {
    * Cerrar sesión
    */
   async logout(): Promise<void> {
+    // Si estamos en nativo, también cerrar sesión de Google
+    if (isNativePlatform()) {
+      try {
+        const { GoogleAuth } = await import("@codetrix-studio/capacitor-google-auth");
+        await GoogleAuth.signOut();
+      } catch {
+        // Silenciar si no estaba logueado con Google
+      }
+    }
     await signOut(auth);
   },
 
