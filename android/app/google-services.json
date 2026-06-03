@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1009709334512",
+    "project_id": "motocheck-ac9bf",
+    "storage_bucket": "motocheck-ac9bf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1009709334512:android:99e221aa6d772328fc2735",
+        "android_client_info": {
+          "package_name": "com.motocheck.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1009709334512-90qu1qil37v0drgq84nt25n4v3ivt7vl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.motocheck.app",
+            "certificate_hash": "2bd47cbb22ed7a39479d81e879421087e55b9f4b"
+          }
+        },
+        {
+          "client_id": "1009709334512-bi9h8be9sfjthleonpa6qbij97n9om3h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-XkE1oxurOp0N18ZRSX8KzAJbZrs7Nr8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1009709334512-bi9h8be9sfjthleonpa6qbij97n9om3h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

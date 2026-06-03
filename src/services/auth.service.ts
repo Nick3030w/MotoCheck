@@ -2,8 +2,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithCredential,
   GoogleAuthProvider,
   signOut,
   updateProfile,
@@ -16,17 +15,6 @@ import { auth } from "@/config/firebase";
 import type { LoginCredentials, RegisterCredentials } from "@/types";
 
 const googleProvider = new GoogleAuthProvider();
-
-/**
- * Detecta si estamos ejecutando en un entorno nativo (Capacitor/Android)
- */
-function isNativePlatform(): boolean {
-  const cap = (window as any).Capacitor;
-  if (!cap) return false;
-  if (typeof cap.isNativePlatform === "function") return cap.isNativePlatform();
-  if (typeof cap.getPlatform === "function") return cap.getPlatform() !== "web";
-  return false;
-}
 
 export const authService = {
   /**
@@ -48,29 +36,12 @@ export const authService = {
   },
 
   /**
-   * Iniciar sesión con Google
-   * En nativo usa signInWithRedirect, en web usa signInWithPopup
+   * Iniciar sesión con Google usando popup
+   * En Capacitor Android, el popup se abre como Chrome Custom Tab
    */
   async loginWithGoogle(): Promise<FirebaseUser> {
-    if (isNativePlatform()) {
-      await signInWithRedirect(auth, googleProvider);
-      // El resultado se obtiene después del redirect con getRedirectResult
-      const result = await getRedirectResult(auth);
-      if (result?.user) {
-        return result.user;
-      }
-      throw new Error("No se pudo completar el inicio de sesión con Google.");
-    }
     const credential = await signInWithPopup(auth, googleProvider);
     return credential.user;
-  },
-
-  /**
-   * Obtener resultado del redirect de Google (para plataformas nativas)
-   */
-  async getGoogleRedirectResult(): Promise<FirebaseUser | null> {
-    const result = await getRedirectResult(auth);
-    return result?.user || null;
   },
 
   /**
