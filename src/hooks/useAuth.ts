@@ -32,7 +32,14 @@ export function useAuth(): UseAuthReturn {
         // Cargar perfil de Firestore
         try {
           const userProfile = await userRepository.getProfile(firebaseUser.uid);
-          setProfile(userProfile);
+          if (!userProfile) {
+            // Si viene de Google redirect y no tiene perfil, crearlo
+            await userRepository.createProfile(firebaseUser);
+            const newProfile = await userRepository.getProfile(firebaseUser.uid);
+            setProfile(newProfile);
+          } else {
+            setProfile(userProfile);
+          }
         } catch (err) {
           console.error("Error loading profile:", err);
         }
@@ -41,6 +48,11 @@ export function useAuth(): UseAuthReturn {
       }
 
       setLoading(false);
+    });
+
+    // Manejar resultado de redirect (Google Sign-In en nativo)
+    authService.getGoogleRedirectResult().catch(() => {
+      // Silenciar error si no hay redirect pendiente
     });
 
     return () => unsubscribe();
@@ -79,12 +91,20 @@ export function useAuth(): UseAuthReturn {
       setError(null);
       setLoading(true);
       const firebaseUser = await authService.loginWithGoogle();
-      // Verificar si ya tiene perfil, si no, crearlo
-      const existingProfile = await userRepository.getProfile(firebaseUser.uid);
-      if (!existingProfile) {
-        await userRepository.createProfile(firebaseUser);
+      // En plataformas nativas con redirect, firebaseUser puede no retornar inmediatamente
+      // El onAuthStateChanged se encargará de capturar el usuario al volver
+      if (firebaseUser) {
+        const existingProfile = await userRepository.getProfile(firebaseUser.uid);
+        if (!existingProfile) {
+          await userRepository.createProfile(firebaseUser);
+        }
       }
     } catch (err: any) {
+      // Ignorar error de redirect (es esperado en nativo)
+      if (err.code === "auth/popup-blocked" || err.code === "auth/cancelled-popup-request") {
+        // En nativo, intentar con redirect silenciosamente
+        return;
+      }
       setError(getErrorMessage(err.code));
       throw err;
     } finally {
